@@ -2,25 +2,13 @@ server:
   port: 8880
 
 spring:
-  datasource:
-    url: jdbc:h2:mem:autoerddb;MODE=MySQL;NON_KEYWORDS=VALUE;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
+  profiles:
+    active: local   # 기본 프로파일. 운영 배포 시 prod로 변경
   jpa:
     hibernate:
       ddl-auto: none
     open-in-view: false
     show-sql: false
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.H2Dialect
-  flyway:
-    enabled: false   # 개발/테스트 환경(H2)에서는 비활성. 프로덕션(MySQL)은 spring.flyway.enabled=true 환경변수로 활성화
-  sql:
-    init:
-      mode: always
-      schema-locations: classpath:schema-h2.sql
   thymeleaf:
     cache: false
     encoding: UTF-8
@@ -48,3 +36,44 @@ logging:
   level:
     com.autoerd: DEBUG
     org.springframework.web: DEBUG
+
+---
+# local / test 프로파일 — H2 인메모리 DB (개발/테스트 환경)
+spring:
+  config:
+    activate:
+      on-profile: "local,test"
+  datasource:
+    url: jdbc:h2:mem:autoerddb;MODE=MySQL;NON_KEYWORDS=VALUE;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+  flyway:
+    enabled: false
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema-h2.sql
+
+---
+# prod 프로파일 — MySQL 8.0+ + Flyway (운영 환경)
+spring:
+  config:
+    activate:
+      on-profile: prod
+  datasource:
+    url: ${SPRING_DATASOURCE_URL}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+  jpa:
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
