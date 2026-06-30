@@ -1,0 +1,65 @@
+plugins {
+	id 'java'
+	id 'org.springframework.boot' version '3.5.0'
+	id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.autoerd'
+version = '0.0.1-SNAPSHOT'
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(17)
+	}
+}
+
+repositories {
+	mavenCentral()
+	maven { url 'https://repo.spring.io/milestone' }
+	maven { url 'https://repo.spring.io/snapshot' }
+}
+
+ext {
+	set('springAiVersion', '1.0.0')
+}
+
+dependencyManagement {
+	imports {
+		mavenBom "org.springframework.ai:spring-ai-bom:${springAiVersion}"
+	}
+}
+
+dependencies {
+	implementation 'org.springframework.boot:spring-boot-starter-validation'
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+	implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
+	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+	compileOnly 'org.projectlombok:lombok'
+	annotationProcessor 'org.projectlombok:lombok'
+
+	// Apache POI — 엑셀 파싱
+	implementation 'org.apache.poi:poi-ooxml:5.3.0'
+
+	// Jackson — JSON 직렬화
+	implementation 'com.fasterxml.jackson.core:jackson-databind'
+
+	// Spring AI — Ollama (local LLM)
+	implementation 'org.springframework.ai:spring-ai-starter-model-ollama'
+
+	// MySQL 프로덕션 DB
+	runtimeOnly 'com.mysql:mysql-connector-j'
+
+	// Flyway — DB 마이그레이션
+	implementation 'org.flywaydb:flyway-mysql'
+
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	// H2 — 테스트 전용 인메모리 DB
+	testRuntimeOnly 'com.h2database:h2'
+	testCompileOnly 'org.projectlombok:lombok'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	testAnnotationProcessor 'org.projectlombok:lombok'
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+}

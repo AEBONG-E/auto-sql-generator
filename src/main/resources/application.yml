@@ -1,0 +1,50 @@
+server:
+  port: 8880
+
+spring:
+  datasource:
+    url: jdbc:h2:mem:autoerddb;MODE=MySQL;NON_KEYWORDS=VALUE;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+  flyway:
+    enabled: false   # 개발/테스트 환경(H2)에서는 비활성. 프로덕션(MySQL)은 spring.flyway.enabled=true 환경변수로 활성화
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema-h2.sql
+  thymeleaf:
+    cache: false
+    encoding: UTF-8
+    mode: HTML
+    prefix: classpath:/templates/
+    suffix: .html
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 10MB
+      max-request-size: 10MB
+      file-size-threshold: 5MB
+      resolve-lazily: false
+  ai:
+    ollama:
+      base-url: http://localhost:11434
+      chat:
+        model: gemma4:latest
+        options:
+          temperature: 0.1
+          num-predict: 2048
+          keep-alive: "0"  # 응답 완료 즉시 모델 언로드 (메모리 해제)
+
+logging:
+  level:
+    com.autoerd: DEBUG
+    org.springframework.web: DEBUG
