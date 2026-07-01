@@ -38,3 +38,7 @@ out/
 
 ### Claude ###
 .claude
+
+### Markdown ###
+*.md
+!README.md
