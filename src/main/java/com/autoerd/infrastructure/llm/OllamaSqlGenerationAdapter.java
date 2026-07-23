@@ -69,11 +69,40 @@ public class OllamaSqlGenerationAdapter implements SqlGenerationPort {
 
         var prompt = new Prompt(List.of(new SystemMessage(SYSTEM_PROMPT), new UserMessage(userContent)));
 
+        StringBuilder received = new StringBuilder();
+
         return chatClient.prompt(prompt)
                 .stream()
                 .content()
                 .map(OllamaSqlGenerationAdapter::stripThinking)
-                .filter(chunk -> !chunk.isEmpty());
+                .filter(chunk -> !chunk.isEmpty())
+                .doOnNext(received::append)
+                .doOnSubscribe(s -> log.info("SQL 생성 스트림 시작: projectId={}, query={}",
+                        request.projectId(), request.query()))
+                .doOnComplete(() -> log.info(
+                        "SQL 생성 스트림 정상 종료(onComplete): projectId={}, {}자 수신, 세미콜론종료={}",
+                        request.projectId(), received.length(), received.toString().trim().endsWith(";")))
+                .doOnCancel(() -> log.warn(
+                        "SQL 생성 스트림 취소(onCancel, 클라이언트/타임아웃 등으로 구독 중단 추정): projectId={}, {}자 수신",
+                        request.projectId(), received.length()))
+                .doOnError(e -> log.error(
+                        "SQL 생성 스트림 오류 종료(onError): projectId={}, {}자 수신, cause={}",
+                        request.projectId(), received.length(), e.toString()))
+                // 정상 완료(onComplete)되었으나 SQL이 세미콜론 없이 끊긴 경우 — LLM의 조기 EOS 방출 등으로
+                // 스트림이 미완성 상태로 종료된 것으로 추정. 사용자에게 명시적으로 알려 재시도를 유도한다.
+                .concatWith(Flux.defer(() -> {
+                    String content = received.toString().trim();
+                    if (!content.isEmpty() && !content.endsWith(";")) {
+                        log.warn("SQL 생성 응답이 세미콜론 없이 종료됨 — 조기 종료로 추정: projectId={}, {}자",
+                                request.projectId(), received.length());
+                        return Flux.just("\n-- ⚠ 응답이 예기치 않게 중단되었습니다. 다시 시도해 주세요.");
+                    }
+                    return Flux.empty();
+                }))
+                .onErrorResume(e -> {
+                    log.error("SQL 생성 중 예외 발생: projectId={}", request.projectId(), e);
+                    return Flux.just("-- ⚠ SQL 생성 중 오류가 발생했습니다. 다시 시도해 주세요.");
+                });
     }
 
     private static String stripThinking(String chunk) {

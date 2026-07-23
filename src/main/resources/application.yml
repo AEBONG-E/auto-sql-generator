@@ -4,6 +4,12 @@ server:
 spring:
   profiles:
     active: local   # 기본 프로파일. 운영 배포 시 prod로 변경
+  mvc:
+    async:
+      # SSE(Flux<String>) 응답은 Servlet 비동기 디스패치를 사용한다. 미설정 시 컨테이너(Tomcat)
+      # 기본 타임아웃(수십 초)이 적용되어, 대형 스키마 DDL + LLM 생성 시간이 이를 초과하면
+      # 스트림이 중간에 끊긴다. LLM 생성 편차를 감안해 넉넉히 설정.
+      request-timeout: 180000
   jpa:
     hibernate:
       ddl-auto: none
