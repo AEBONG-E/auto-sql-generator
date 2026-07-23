@@ -145,4 +145,65 @@ class TableCandidatePrefilterTest {
         List<TableSchema> result = p.prefilter("user", tables, List.of());
         assertThat(result).isSameAs(tables);
     }
+
+    /**
+     * 정확도 최우선: 다수 테이블이 매칭될 때 비율 기반 실효상한(max(50, ceil(100×0.7))=70)까지
+     * 넉넉히 유지해야 한다(과도한 축소 금지).
+     */
+    @Test
+    void ratioBasedLimitKeepsMajorityWhenManyMatch() {
+        List<TableSchema> tables = new ArrayList<>();
+        for (int i = 0; i < 100; i++) {
+            tables.add(table("user_" + i, "회원", "id")); // 전부 "user"/"회원" 매칭 → 동점
+        }
+        TableCandidatePrefilter p = newPrefilter(true, 30, 50); // ratio 기본 0.7
+        List<TableSchema> result = p.prefilter("user 조회", tables, List.of());
+        // 실효상한 = max(50, ceil(100*0.7)) = 70
+        assertThat(result).hasSize(70);
+    }
+
+    /**
+     * 정확도 최우선: 스코어가 0인 브리지 테이블이라도 관계(FK 1-hop)로 연결되면 무조건 후보에 포함해야 한다.
+     */
+    @Test
+    void relationExpansionIncludesZeroScoreBridge() {
+        List<TableSchema> tables = new ArrayList<>();
+        tables.add(table("user", "회원", "id"));               // 질의 매칭 → scored
+        tables.add(table("zzz_bridge", "", "id", "amount"));   // 질의 무매칭 → score 0
+        for (int i = 0; i < 40; i++) {
+            tables.add(table("noise_" + i, "노이즈 " + i, "id"));
+        }
+        // user <-> zzz_bridge FK 관계
+        List<TableRelation> relations = List.of(
+                TableRelation.builder()
+                        .fromTable("zzz_bridge").fromColumn("user_ref")
+                        .toTable("user").toColumn("id")
+                        .type(RelationType.ONE_TO_MANY).build());
+
+        TableCandidatePrefilter p = newPrefilter(true, 30, 50);
+        List<TableSchema> result = p.prefilter("user 조회", tables, relations);
+        List<String> names = result.stream().map(TableSchema::getTableName).toList();
+
+        assertThat(names).contains("user");
+        assertThat(names).contains("zzz_bridge"); // 스코어 0이지만 관계로 포함
+    }
+
+    /**
+     * 부분·양방향 매칭: 질의 토큰이 테이블명 토큰의 부분이거나 그 반대여도 매칭되어야 한다.
+     * "member"(질의) ↔ "member_ship"(테이블명 토큰) 부분일치 확인.
+     */
+    @Test
+    void partialMatchingCatchesStemVariants() {
+        List<TableSchema> tables = new ArrayList<>();
+        tables.add(table("membership_grade", "등급", "id", "grade"));
+        for (int i = 0; i < 40; i++) {
+            tables.add(table("noise_" + i, "노이즈 " + i, "id"));
+        }
+        TableCandidatePrefilter p = newPrefilter(true, 30, 50);
+        // "membership" 토큰이 "membership_grade" → 정규화 "membership grade" 토큰 "membership"과 완전일치
+        // + 영문 "member"만 넣어도 부분일치로 잡히는지 확인
+        List<TableSchema> result = p.prefilter("member 등급 조회", tables, List.of());
+        List<String> names = result.stream().map(TableSchema::getTableName).toList();
+        assertThat(names).contains("membership_grade");
+    }
 }

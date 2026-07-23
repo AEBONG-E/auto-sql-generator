@@ -20,41 +20,33 @@ import java.util.stream.Collectors;
  * Step1(테이블 매핑) LLM 호출 전에 후보 테이블을 사전 축소하는 결정적(비-LLM) 필터.
  *
  * <p>배경: 대형 스키마(90테이블·1,421컬럼 실측)에서 전체 테이블을 Step1 프롬프트에 넣으면
- * gemma4의 prompt_eval 토큰이 급증해 Step1 지연이 33~75초까지 커진다. 사용자 질의의 토큰과
- * 테이블명/설명/컬럼명을 매칭해 후보를 상위 N개로 좁혀 프롬프트 크기를 낮춘다.
+ * gemma4의 prompt_eval 토큰이 급증해 Step1 지연이 33~75초까지 커진다. 사용자 질의와 관련된
+ * 테이블만 후보로 좁혀 프롬프트 크기를 낮춘다.
  *
- * <p>정확도 보완(QA 실측 Q1 반영): 한글 질의("지점")는 영문 테이블명({@code branch})과 글자 겹침이
- * 없어 매칭되지 않는다. {@link PrefilterProperties#getSynonyms()} 동의어 사전으로 한글 용어를 영문
- * 토큰으로 확장해 이 간극을 메운다. 동의어는 질의 전체에 대한 부분일치로 적용되어 "지점별" 같은
- * 조사 결합형도 처리한다.
- *
- * <p>안전 원칙(회귀 방지):
+ * <p><b>정확도 최우선(recall-first) 정책</b>: 속도보다 관련 테이블 누락 방지가 우선이다.
+ * 다음 다중 안전장치로 pre-filter ON/OFF의 최종 SQL이 의미상 동일하도록 recall을 최대화한다.
  * <ul>
- *   <li>소형 스키마({@code min-tables} 이하)에는 적용하지 않고 전체를 그대로 넘긴다 → 기존 동작 보존.</li>
- *   <li>매칭 후보가 0건이면 전체를 넘기는 폴백을 유지한다 → 정확도 보존.</li>
- *   <li>최종 선별은 여전히 LLM + {@code validNames} 서버측 필터가 담당한다. 본 필터는 앞단의 후보 축소일 뿐이다.</li>
- *   <li>관계(추론된 FK)로 1-hop 이웃 테이블을 후보에 포함해 JOIN 브리지 테이블 누락을 완화한다.</li>
- *   <li>{@code app.llm.prefilter.enabled=false}로 완전히 끌 수 있다.</li>
+ *   <li><b>동의어 사전</b> — 한글 질의("지점")를 영문 식별자 토큰(branch)으로 확장(한글↔영문 간극 해소).</li>
+ *   <li><b>부분·양방향 매칭</b> — 질의 토큰과 테이블/컬럼 토큰의 부분일치(어간 유사)까지 허용해 매칭 recall↑.</li>
+ *   <li><b>비율 기반 상한</b> — 실효 상한 = max(maxCandidates, ceil(전체×ratio)). 기본 max(50, 70%).</li>
+ *   <li><b>관계 1-hop 이웃 무조건 포함</b> — 코어/브리지 테이블은 스코어 0이어도 FK로 연결되면 포함,
+ *       실효 상한을 넘어 전체 크기까지 허용.</li>
+ *   <li><b>0건 폴백</b> — 매칭이 전무하면 전체를 그대로 넘긴다.</li>
+ *   <li><b>소형 스키마 no-op</b> — {@code min-tables} 이하는 미적용(기존 동작 보존).</li>
  * </ul>
+ * 최종 선별은 여전히 Step1 LLM + {@code validNames} 서버측 필터가 담당한다.
+ * {@code app.llm.prefilter.enabled=false}로 완전히 끌 수 있다.
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class TableCandidatePrefilter {
 
-    /** 질의 토큰 분리: 유니코드 문자/숫자가 아닌 경계로 분리(한글·영문 혼용 대응). */
+    /** 질의/식별자 토큰 분리: 유니코드 문자/숫자가 아닌 경계로 분리(한글·영문 혼용 대응). */
     private static final Pattern TOKEN_SPLIT = Pattern.compile("[^\\p{L}\\p{N}]+");
 
     private final PrefilterProperties props;
 
-    /**
-     * 질의와 스키마를 받아 Step1에 넘길 후보 테이블을 축소해 반환한다.
-     * 적용 조건을 만족하지 못하거나 매칭이 없으면 {@code allTables}를 그대로 반환한다.
-     *
-     * @param query     사용자 자연어 질의
-     * @param allTables 전체 테이블(스키마 스냅샷)
-     * @param relations 추론된 관계(없으면 빈 리스트 허용) — 1-hop 이웃 포함에 사용
-     */
     public List<TableSchema> prefilter(String query, List<TableSchema> allTables, List<TableRelation> relations) {
         if (!props.isEnabled() || allTables == null || allTables.size() <= props.getMinTables()) {
             return allTables;
@@ -64,9 +56,8 @@ public class TableCandidatePrefilter {
         if (tokens.isEmpty()) {
             return allTables; // 매칭할 토큰이 없음 → 폴백
         }
-        int maxCandidates = props.getMaxCandidates();
 
-        // 1) 테이블별 키워드 스코어링 (이름 > 설명 > 컬럼)
+        // 1) 테이블별 키워드 스코어링 (이름 > 설명 > 컬럼, 부분·양방향 매칭)
         List<Scored> scored = new ArrayList<>();
         for (TableSchema t : allTables) {
             int score = scoreTable(t, tokens);
@@ -79,57 +70,75 @@ public class TableCandidatePrefilter {
             return allTables; // 매칭 실패 → 전체 폴백(정확도 보존)
         }
 
-        // 2) 점수 내림차순(동점은 원본 순서 유지) 후 상위 N개 선택
+        // 2) 실효 상한 = max(maxCandidates, ceil(전체 × ratio)) — 정확도 최우선(넉넉히 유지)
+        int effectiveLimit = effectiveLimit(allTables.size());
+
+        // 3) 점수 내림차순(동점은 원본 순서 유지) 후 상위 실효상한 개 선택
         scored.sort((a, b) -> Integer.compare(b.score, a.score));
         Set<String> selectedNames = new LinkedHashSet<>();
         for (Scored s : scored) {
-            if (selectedNames.size() >= maxCandidates) break;
+            if (selectedNames.size() >= effectiveLimit) break;
             selectedNames.add(s.table.getTableName());
         }
+        int scoredSelected = selectedNames.size();
 
-        // 3) 관계 1-hop 이웃 포함(JOIN 브리지 테이블 누락 완화), 상한 내에서만
-        if (relations != null && !relations.isEmpty()) {
+        // 4) 관계 1-hop 이웃 무조건 포함(스코어 0인 브리지/코어 FK 테이블 누락 방지).
+        //    recall 우선이므로 실효 상한을 넘어 전체 크기까지 허용한다.
+        if (props.isExpandRelations() && relations != null && !relations.isEmpty()) {
             List<String> seeds = new ArrayList<>(selectedNames);
             for (String seed : seeds) {
-                if (selectedNames.size() >= maxCandidates) break;
                 for (TableRelation r : relations) {
-                    if (selectedNames.size() >= maxCandidates) break;
                     if (seed.equals(r.getFromTable())) selectedNames.add(r.getToTable());
                     if (seed.equals(r.getToTable())) selectedNames.add(r.getFromTable());
                 }
             }
         }
 
-        // 4) 원본 순서를 보존해 반환(결정적 출력)
+        // 5) 원본 순서를 보존해 반환(결정적 출력)
         List<TableSchema> result = allTables.stream()
                 .filter(t -> selectedNames.contains(t.getTableName()))
                 .collect(Collectors.toList());
 
-        log.info("Pre-filter: {}개 → {}개 후보로 축소 (query 토큰 {}개, max={})",
-                allTables.size(), result.size(), tokens.size(), maxCandidates);
+        log.info("Pre-filter: {}개 → {}개 후보 (scored {}개 + 관계이웃 {}개, 실효상한 {}, query 토큰 {}개)",
+                allTables.size(), result.size(), scoredSelected, result.size() - scoredSelected,
+                effectiveLimit, tokens.size());
         return result;
     }
 
+    private int effectiveLimit(int total) {
+        double ratio = Math.max(0.0, Math.min(1.0, props.getCandidateRatio()));
+        int ratioBased = (int) Math.ceil(total * ratio);
+        return Math.max(props.getMaxCandidates(), ratioBased);
+    }
+
     private int scoreTable(TableSchema t, Set<String> tokens) {
-        String nameText = normalize(t.getTableName());
-        String descText = normalize(t.getTableDescription());
-        String colText = t.getColumns() == null ? "" : t.getColumns().stream()
-                .map(this::columnText)
-                .collect(Collectors.joining(" "));
+        Set<String> nameToks = tokensOf(normalize(t.getTableName()));
+        Set<String> descToks = tokensOf(normalize(t.getTableDescription()));
+        Set<String> colToks = new LinkedHashSet<>();
+        if (t.getColumns() != null) {
+            for (ColumnDef c : t.getColumns()) {
+                colToks.addAll(tokensOf(normalize(c.getColumnName())));
+                colToks.addAll(tokensOf(normalize(c.getColumnComment())));
+            }
+        }
 
         int score = 0;
         for (String token : tokens) {
-            if (!nameText.isEmpty() && nameText.contains(token)) score += 3;
-            if (!descText.isEmpty() && descText.contains(token)) score += 2;
-            if (!colText.isEmpty() && colText.contains(token)) score += 1;
+            if (matches(nameToks, token)) score += 3;
+            if (matches(descToks, token)) score += 2;
+            if (matches(colToks, token)) score += 1;
         }
         return score;
     }
 
-    private String columnText(ColumnDef c) {
-        String name = normalize(c.getColumnName());
-        String comment = normalize(c.getColumnComment());
-        return (name + " " + comment).trim();
+    /** 부분·양방향 매칭: 완전일치 또는 어느 한쪽이 다른 쪽을 포함(3자 이상)하면 매칭으로 본다. */
+    private boolean matches(Set<String> tableTokens, String queryToken) {
+        for (String tt : tableTokens) {
+            if (tt.equals(queryToken)) return true;
+            if (queryToken.length() >= 3 && tt.contains(queryToken)) return true;
+            if (tt.length() >= 3 && queryToken.contains(tt)) return true;
+        }
+        return false;
     }
 
     /**
@@ -142,26 +151,30 @@ public class TableCandidatePrefilter {
         }
         String lower = query.toLowerCase();
 
-        Set<String> tokens = Arrays.stream(TOKEN_SPLIT.split(lower))
-                .map(String::trim)
-                .filter(s -> s.length() >= 2) // 1글자 토큰은 노이즈가 커서 제외
-                .collect(Collectors.toCollection(LinkedHashSet::new));
+        Set<String> tokens = tokensOf(lower);
 
-        // 동의어 확장: 한글 용어 → 영문 식별자 토큰 (한글↔영문 테이블명 간극 보완)
         Map<String, String> synonyms = props.getSynonyms();
         if (synonyms != null && !synonyms.isEmpty()) {
             for (Map.Entry<String, String> e : synonyms.entrySet()) {
                 String key = e.getKey();
                 if (key == null || key.isBlank()) continue;
                 if (lower.contains(key.toLowerCase())) {
-                    for (String mapped : TOKEN_SPLIT.split(e.getValue().toLowerCase())) {
-                        String m = mapped.trim();
-                        if (m.length() >= 2) tokens.add(m);
-                    }
+                    tokens.addAll(tokensOf(e.getValue().toLowerCase()));
                 }
             }
         }
         return tokens;
+    }
+
+    /** 문자열을 2자 이상 토큰 집합으로 분해(1자 토큰은 노이즈가 커서 제외). */
+    private Set<String> tokensOf(String text) {
+        if (text == null || text.isBlank()) {
+            return new LinkedHashSet<>();
+        }
+        return Arrays.stream(TOKEN_SPLIT.split(text))
+                .map(String::trim)
+                .filter(s -> s.length() >= 2)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
     /** 소문자화 + 언더스코어를 공백으로 치환해 식별자 토큰 매칭이 되도록 정규화. */

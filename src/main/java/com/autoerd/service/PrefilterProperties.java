@@ -30,8 +30,23 @@ public class PrefilterProperties {
     /** 테이블 수가 이 값 이하이면 사전 축소를 적용하지 않는다(소형 스키마 회귀 방지). */
     private int minTables = 30;
 
-    /** Step1에 넘길 최대 후보 테이블 수. QA 실측(30이 부족)에 따라 기본 40으로 상향. */
-    private int maxCandidates = 40;
+    /**
+     * 후보 상한의 절대 하한선. 정확도 최우선 정책에 따라 기본 50으로 상향.
+     * 실효 상한 = max(maxCandidates, ceil(전체 × candidateRatio)).
+     */
+    private int maxCandidates = 50;
+
+    /**
+     * 후보 상한의 비율 기반 하한선(전체 대비). 정확도 최우선 정책: 기본 0.7(70% 유지).
+     * 90테이블이면 max(50, 63) = 63개까지 후보 유지. 0~1로 클램프된다.
+     */
+    private double candidateRatio = 0.7;
+
+    /**
+     * 관계 1-hop 이웃을 스코어와 무관하게 후보에 포함할지 여부(JOIN 브리지/코어 FK 누락 방지).
+     * 정확도 최우선: 기본 true. 이웃 포함은 실효 상한을 넘어 전체 크기까지 허용된다.
+     */
+    private boolean expandRelations = true;
 
     /**
      * 한글 질의 용어 → 영문 식별자 토큰(공백 구분) 동의어 사전.
