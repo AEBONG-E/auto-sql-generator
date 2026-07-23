@@ -6,7 +6,6 @@ import com.autoerd.model.RelationType;
 import com.autoerd.model.TableRelation;
 import com.autoerd.model.TableSchema;
 import org.junit.jupiter.api.Test;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -16,11 +15,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 class TableCandidatePrefilterTest {
 
     private TableCandidatePrefilter newPrefilter(boolean enabled, int minTables, int maxCandidates) {
-        TableCandidatePrefilter p = new TableCandidatePrefilter();
-        ReflectionTestUtils.setField(p, "enabled", enabled);
-        ReflectionTestUtils.setField(p, "minTables", minTables);
-        ReflectionTestUtils.setField(p, "maxCandidates", maxCandidates);
-        return p;
+        PrefilterProperties props = new PrefilterProperties();
+        props.setEnabled(enabled);
+        props.setMinTables(minTables);
+        props.setMaxCandidates(maxCandidates);
+        return new TableCandidatePrefilter(props);
     }
 
     private TableSchema table(String name, String desc, String... columns) {
@@ -107,6 +106,32 @@ class TableCandidatePrefilterTest {
         List<String> names = result.stream().map(TableSchema::getTableName).toList();
 
         assertThat(names).contains("orders", "order_items");
+    }
+
+    /**
+     * QA 실측 Q1 회귀 재현/방지: 한글 "지점별" 질의가 설명이 빈 영문 `branch` 테이블을
+     * 동의어 사전(지점→branch)으로 후보에 포함해야 한다.
+     */
+    @Test
+    void koreanSynonymPullsInEnglishTableWithEmptyDescription() {
+        List<TableSchema> tables = new ArrayList<>();
+        // branch: 설명/컬럼 코멘트가 비어 스코어가 낮은 상황 재현
+        tables.add(table("branch", "", "branch_id", "branch_nm"));
+        tables.add(table("user", "회원", "user_id", "user_status", "region_code"));
+        tables.add(table("user_branch_change_history", "회원 지점 변경 이력",
+                "user_id", "after_branch_id", "delete_yn"));
+        for (int i = 0; i < 45; i++) {
+            tables.add(table("etc_" + i, "기타 " + i, "id"));
+        }
+
+        TableCandidatePrefilter p = newPrefilter(true, 30, 40);
+        List<TableSchema> result = p.prefilter(
+                "지점별 활성 회원 수, 10명 이상, 내림차순", tables, List.of());
+        List<String> names = result.stream().map(TableSchema::getTableName).toList();
+
+        assertThat(names).contains("branch");                       // 동의어로 살아남아야 함
+        assertThat(names).contains("user", "user_branch_change_history");
+        assertThat(result.size()).isLessThan(tables.size());        // 여전히 축소됨
     }
 
     /** enabled=false이면 전체를 그대로 반환한다. */

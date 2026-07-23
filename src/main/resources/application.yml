@@ -60,7 +60,13 @@ app:
     prefilter:
       enabled: true
       min-tables: 30       # 테이블 수가 이 값 이하이면 미적용(소형 스키마 회귀 방지)
-      max-candidates: 30   # Step1에 넘길 최대 후보 테이블 수
+      max-candidates: 40   # Step1에 넘길 최대 후보 테이블 수 (QA 실측 반영: 30→40 안전마진 상향)
+      # 한글 질의 용어 → 영문 식별자 토큰 동의어 사전. 한글("지점")이 영문 테이블명(branch)에
+      # 매칭되지 않아 관련 테이블이 밀리는 문제(QA Q1) 보완. 코드 기본값(PrefilterProperties)에
+      # 도메인 공통어가 시드되어 있고, 아래처럼 프로젝트별 용어를 추가/재정의할 수 있다(병합됨).
+      # synonyms:
+      #   출고: "release dispatch"
+      #   반품: "return refund"
 
 logging:
   level:
