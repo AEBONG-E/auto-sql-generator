@@ -10,6 +10,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+// 레거시 세션 fallback — DB 기반 v1 파이프라인(ImportMetadataService 등)으로 대체됨.
+// 유지 범위/제거 조건: docs/session-fallback-removal-plan.md
 @Component
 @SessionScope
 public class SchemaSessionStore {
