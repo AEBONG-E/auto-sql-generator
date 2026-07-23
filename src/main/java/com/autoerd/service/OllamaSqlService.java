@@ -61,6 +61,7 @@ public class OllamaSqlService {
     private final DdlContextBuilder ddlContextBuilder;
     private final SchemaSessionStore schemaSessionStore;
     private final SchemaAnalysisService schemaAnalysisService;
+    private final TableCandidatePrefilter tableCandidatePrefilter;
 
     public Flux<String> generateSqlStream(String userQuery) {
         List<TableSchema> allSchemas = schemaSessionStore.get();
@@ -69,7 +70,11 @@ public class OllamaSqlService {
         }
 
         // ── Step 1: 테이블 매핑 (동기 호출) ──────────────────────────────────
-        List<TableSchema> relevantSchemas = resolveRelevantTables(allSchemas, userQuery);
+        // 대형 스키마에서 Step1 프롬프트 크기를 낮추기 위해 후보를 사전 축소한다.
+        // (소형 스키마/매칭 0건이면 전체 폴백 — 회귀 없음)
+        List<TableRelation> allRelations = schemaAnalysisService.inferRelations(allSchemas);
+        List<TableSchema> candidateSchemas = tableCandidatePrefilter.prefilter(userQuery, allSchemas, allRelations);
+        List<TableSchema> relevantSchemas = resolveRelevantTables(candidateSchemas, userQuery);
         if (relevantSchemas.isEmpty()) {
             return Flux.just("-- insufficient_schema: 요청에 해당하는 테이블을 스키마에서 찾을 수 없습니다.\n"
                     + "-- 업로드된 스키마에 관련 테이블이 있는지 확인해 주세요.");
