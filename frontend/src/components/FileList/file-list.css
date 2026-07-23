@@ -1,0 +1,55 @@
+.file-list-section {
+  border-bottom: 1px solid var(--border);
+}
+.file-list-header {
+  padding: var(--space-3) var(--space-4) var(--space-1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.file-list-empty {
+  padding: 0 var(--space-4) var(--space-3);
+  font-size: 12px;
+  color: var(--text-disabled);
+}
+.file-list {
+  max-height: 180px;
+  overflow-y: auto;
+  padding: 0 var(--space-2) var(--space-2);
+}
+.file-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  transition: opacity 0.2s;
+}
+.file-icon {
+  color: var(--accent);
+}
+.file-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+}
+.file-delete-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 2px;
+}
+.file-delete-btn:hover {
+  color: var(--danger);
+}
+.file-confirm-text {
+  flex: 1;
+  color: var(--text-muted);
+  font-size: 11px;
+}

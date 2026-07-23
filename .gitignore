@@ -42,3 +42,9 @@ out/
 ### Markdown ###
 *.md
 !README.md
+
+### Frontend (Vite + React) ###
+frontend/node_modules/
+frontend/dist/
+# Vite가 매 빌드마다 src/main/resources/static에 해시된 번들을 새로 생성한다 (gradle npmBuild).
+src/main/resources/static/

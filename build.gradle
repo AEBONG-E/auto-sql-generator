@@ -63,3 +63,31 @@ dependencies {
 tasks.named('test') {
 	useJUnitPlatform()
 }
+
+// ── Frontend (Vite + React) — 빌드 산출물을 src/main/resources/static로 직접 출력하여
+// Spring Boot 정적 리소스로 서빙한다. bootJar/bootRun 전에 항상 최신 번들이 포함되도록
+// processResources가 npmBuild에 의존한다.
+def npmExecutable = org.gradle.internal.os.OperatingSystem.current().isWindows() ? 'npm.cmd' : 'npm'
+
+tasks.register('npmInstall', Exec) {
+	group = 'frontend'
+	workingDir = file('frontend')
+	commandLine npmExecutable, 'ci'
+	inputs.file('frontend/package-lock.json')
+	outputs.dir('frontend/node_modules')
+}
+
+tasks.register('npmBuild', Exec) {
+	group = 'frontend'
+	dependsOn tasks.named('npmInstall')
+	workingDir = file('frontend')
+	commandLine npmExecutable, 'run', 'build'
+	inputs.dir('frontend/src')
+	inputs.file('frontend/index.html')
+	inputs.file('frontend/vite.config.ts')
+	outputs.dir('src/main/resources/static')
+}
+
+tasks.named('processResources') {
+	dependsOn tasks.named('npmBuild')
+}
