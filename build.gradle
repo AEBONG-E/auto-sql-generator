@@ -53,7 +53,8 @@ dependencies {
 	implementation 'org.flywaydb:flyway-mysql'
 
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
-	// H2 — 테스트 전용 인메모리 DB
+	// H2 — local 개발 런타임(bootRun) 및 테스트 전용. developmentOnly는 bootJar(prod 아티팩트)에서 제외되어 MySQL 운영 환경을 오염시키지 않는다.
+	developmentOnly 'com.h2database:h2'
 	testRuntimeOnly 'com.h2database:h2'
 	testCompileOnly 'org.projectlombok:lombok'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
