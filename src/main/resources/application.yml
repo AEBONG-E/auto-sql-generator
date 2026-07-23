@@ -40,6 +40,15 @@ spring:
           # 메모리에 보존하다가 idle 시 자동 언로드. 메모리 압박이 큰 환경에서는 "0"로 축소.
           keep-alive: "5m"
 
+# 앱 기동 완료 후 gemma4 모델을 백그라운드로 프리로드(warm-up)하여 첫 요청의 콜드 스타트를 제거.
+# 비블로킹·실패 격리 구현(com.autoerd.config.ModelWarmupRunner). Ollama가 없는 로컬/CI에서는
+# enabled: false로 끌 수 있다. (기존 2단계 LLM 경로와 num-ctx/keep-alive 설정에는 영향 없음)
+app:
+  llm:
+    warmup:
+      enabled: true
+      prompt: "ping"
+
 logging:
   level:
     com.autoerd: DEBUG
