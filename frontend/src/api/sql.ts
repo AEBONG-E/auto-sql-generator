@@ -1,3 +1,5 @@
+import { API_BASE } from './config'
+
 /**
  * SSE 스트리밍 SQL 생성. EventSource는 POST body를 지원하지 않으므로
  * fetch + ReadableStream reader로 SSE 프레임(`data:` 라인, 빈 줄 구분)을 직접 파싱한다.
@@ -8,7 +10,7 @@ export async function generateSql(
   onChunk: (chunk: string) => void,
   signal: AbortSignal,
 ): Promise<void> {
-  const res = await fetch(`/api/v1/projects/${projectId}/sql/generate`, {
+  const res = await fetch(`${API_BASE}/api/v1/projects/${projectId}/sql/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
     body: JSON.stringify({ query }),

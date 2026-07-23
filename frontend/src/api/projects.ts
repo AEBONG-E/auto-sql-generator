@@ -1,7 +1,8 @@
 import { apiFetch } from './http'
+import { API_BASE } from './config'
 import type { Project } from '../types/api'
 
-const BASE = '/api/v1/projects'
+const BASE = `${API_BASE}/api/v1/projects`
 
 export function listProjects(): Promise<Project[]> {
   return apiFetch<Project[]>(BASE)

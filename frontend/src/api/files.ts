@@ -1,7 +1,8 @@
 import { apiFetch, apiFetchVoid } from './http'
+import { API_BASE } from './config'
 import type { ProjectFile } from '../types/api'
 
-const base = (projectId: number) => `/api/v1/projects/${projectId}`
+const base = (projectId: number) => `${API_BASE}/api/v1/projects/${projectId}`
 
 export function listFiles(projectId: number): Promise<ProjectFile[]> {
   return apiFetch<ProjectFile[]>(`${base(projectId)}/files`)

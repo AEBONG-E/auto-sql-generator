@@ -3,6 +3,7 @@ import type { Project } from './types/api'
 import { ToastProvider, useToast } from './hooks/useToast'
 import { useProjects } from './hooks/useProjects'
 import { ToastContainer } from './components/common/ToastContainer'
+import { ErrorBoundary } from './components/common/ErrorBoundary'
 import { Header } from './components/layout/Header'
 import { Workspace } from './components/layout/Workspace'
 import { ProjectSelector } from './components/ProjectSelector/ProjectSelector'
@@ -65,16 +66,18 @@ function AppShell() {
         onGoToProjectList={goToProjectList}
       />
 
-      {currentProject ? (
-        <Workspace key={currentProject.id} project={currentProject} />
-      ) : (
-        <ProjectSelector
-          projects={projects}
-          loading={loading}
-          onSelect={selectProject}
-          onCreateClick={() => setCreatorOpen(true)}
-        />
-      )}
+      <ErrorBoundary key={currentProject?.id ?? 'list'}>
+        {currentProject ? (
+          <Workspace key={currentProject.id} project={currentProject} />
+        ) : (
+          <ProjectSelector
+            projects={projects}
+            loading={loading}
+            onSelect={selectProject}
+            onCreateClick={() => setCreatorOpen(true)}
+          />
+        )}
+      </ErrorBoundary>
 
       {creatorOpen && (
         <ProjectCreator
