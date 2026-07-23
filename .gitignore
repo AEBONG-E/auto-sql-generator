@@ -43,6 +43,9 @@ out/
 *.md
 !README.md
 
+### 요구사항 도출/분석 문서 (로컬 전용, 형상관리 제외) ###
+requirements-analysis/
+
 ### Frontend (Vite + React) ###
 frontend/node_modules/
 frontend/dist/
