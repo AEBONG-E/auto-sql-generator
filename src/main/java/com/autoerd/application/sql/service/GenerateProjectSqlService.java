@@ -10,6 +10,7 @@ import com.autoerd.domain.sql.port.SqlMetadataProvider;
 import com.autoerd.domain.sql.port.SqlTableResolverPort;
 import com.autoerd.model.TableRelation;
 import com.autoerd.model.TableSchema;
+import com.autoerd.service.TableCandidatePrefilter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -28,6 +29,7 @@ public class GenerateProjectSqlService implements GenerateProjectSqlUseCase {
     private final SqlMetadataProvider metadataProvider;
     private final SqlTableResolverPort tableResolver;
     private final SqlGenerationPort sqlGenerationPort;
+    private final TableCandidatePrefilter tableCandidatePrefilter;
 
     @Override
     public Flux<String> generateSql(GenerateProjectSqlCommand command) {
@@ -37,7 +39,12 @@ public class GenerateProjectSqlService implements GenerateProjectSqlUseCase {
             return Flux.just("-- 스키마 정보가 없습니다. 먼저 엑셀 파일을 업로드해 주세요.");
         }
 
-        List<String> candidateNames = snapshot.tables().stream()
+        // Step1 전 후보 사전 축소(pre-filter): 대형 스키마에서 프롬프트 크기를 낮춰 Step1 지연을 줄인다.
+        // 소형 스키마/매칭 0건이면 전체를 그대로 넘기는 폴백이 내장되어 있어 회귀가 없다.
+        List<TableSchema> candidateTables =
+                tableCandidatePrefilter.prefilter(command.query(), snapshot.tables(), snapshot.relations());
+
+        List<String> candidateNames = candidateTables.stream()
                 .map(TableSchema::getTableName)
                 .toList();
 
