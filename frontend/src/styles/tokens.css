@@ -1,0 +1,53 @@
+:root {
+  /* Background */
+  --bg: #0f1117;
+  --surface: #1a1d27;
+  --surface-2: #23273a;
+  --surface-3: #2a2f45;
+
+  /* Border */
+  --border: #2e3347;
+  --border-focus: #5b8dee;
+
+  /* Text */
+  --text: #e4e6f0;
+  --text-muted: #8b90a8;
+  --text-disabled: #4a4f6a;
+
+  /* Brand */
+  --accent: #5b8dee;
+  --accent-hover: #4a7de0;
+  --accent-2: #7c5ce0;
+
+  /* Semantic */
+  --success: #2ecc71;
+  --success-bg: #1a2d1e;
+  --warning: #f39c12;
+  --warning-bg: #2d2410;
+  --danger: #e74c3c;
+  --danger-bg: #2d1a1a;
+
+  /* SQL Syntax */
+  --sql-keyword: #569cd6;
+  --sql-string: #ce9178;
+  --sql-number: #b5cea8;
+  --sql-comment: #6a9955;
+
+  /* Spacing */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+
+  /* Layout */
+  --sidebar-w: 260px;
+  --sidebar-w-compact: 220px;
+  --header-h: 52px;
+  --context-bar-h: 36px;
+  --tab-bar-h: 40px;
+
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace;
+}

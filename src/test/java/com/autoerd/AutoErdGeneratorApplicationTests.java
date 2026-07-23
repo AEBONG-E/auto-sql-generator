@@ -25,20 +25,19 @@ class AutoErdGeneratorApplicationTests {
 	}
 
 	@Test
-	void rootPageShouldDisableCaching() throws Exception {
+	void rootPageShouldForwardToStaticIndexWithNoCacheHeaders() throws Exception {
 		mockMvc.perform(get("/"))
 				.andExpect(status().isOk())
-				.andExpect(view().name("index"))
+				.andExpect(view().name("forward:/index.html"))
 				.andExpect(header().string("Cache-Control", containsString("no-store")))
 				.andExpect(header().string("Pragma", "no-cache"));
 	}
 
 	@Test
-	void indexHtmlAliasShouldRenderSameTemplate() throws Exception {
+	void indexHtmlShouldBeServedAsStaticResource() throws Exception {
 		mockMvc.perform(get("/index.html"))
 				.andExpect(status().isOk())
-				.andExpect(view().name("index"))
-				.andExpect(header().string("Cache-Control", containsString("no-store")));
+				.andExpect(header().string("Content-Type", containsString("text/html")));
 	}
 
 	@Test
