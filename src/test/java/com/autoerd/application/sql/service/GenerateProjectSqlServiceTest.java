@@ -13,6 +13,10 @@ import org.junit.jupiter.api.Test;
 import com.autoerd.domain.sql.model.SqlTableResolutionRequest;
 import org.junit.jupiter.api.DisplayName;
 import org.mockito.ArgumentCaptor;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
+import reactor.core.publisher.Flux;
 
 import java.util.List;
 
@@ -25,6 +29,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+@ExtendWith(OutputCaptureExtension.class)
 class GenerateProjectSqlServiceTest {
 
     private final SqlMetadataProvider metadataProvider = mock(SqlMetadataProvider.class);
@@ -92,5 +97,30 @@ class GenerateProjectSqlServiceTest {
         assertThat(request.candidateTableDescriptions())
                 .containsEntry("tb_order", "주문")
                 .doesNotContainKey("tb_log");
+    }
+
+    @Test
+    @DisplayName("Step1 성공 로그는 projectId, 선별 테이블, 소요 시간만 남기고 질의 원문은 남기지 않는다")
+    void generateSql_success_doesNotLogQueryText(CapturedOutput output) {
+        when(tableResolver.resolveRelevantTableNames(any())).thenReturn(List.of("orders"));
+        when(sqlGenerationPort.generate(any())).thenReturn(Flux.just("SELECT 1;"));
+
+        service.generateSql(command).blockLast();
+
+        assertThat(output).containsPattern("관련 테이블 \\[orders\\] 해결됨: projectId=1, step1ElapsedMs=\\d+");
+        assertThat(output).doesNotContain("주문 목록");
+    }
+
+    @Test
+    @DisplayName("Step1 실패 로그는 projectId, 소요 시간, 원인 종류를 남기고 질의 원문은 남기지 않는다")
+    void generateSql_step1Failure_logsCauseWithoutQueryText(CapturedOutput output) {
+        when(tableResolver.resolveRelevantTableNames(any()))
+                .thenThrow(new SqlTableResolutionException("fail", new IllegalStateException("timeout")));
+
+        service.generateSql(command).blockLast();
+
+        assertThat(output).containsPattern(
+                "Step1 테이블 판별 실패로 SQL 생성 중단: projectId=1, elapsedMs=\\d+, cause=java.lang.IllegalStateException");
+        assertThat(output).doesNotContain("주문 목록");
     }
 }

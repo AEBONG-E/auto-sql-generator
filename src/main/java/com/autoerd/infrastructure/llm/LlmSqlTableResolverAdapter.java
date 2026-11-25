@@ -61,7 +61,7 @@ public class LlmSqlTableResolverAdapter implements SqlTableResolverPort {
                     .content();
 
             response = stripThinking(response).trim();
-            log.info("Table resolution response: [{}]", response);
+            log.debug("Table resolution response: [{}]", response);
 
             if (response.isBlank() || response.equalsIgnoreCase("NONE")) {
                 return List.of();

@@ -80,9 +80,8 @@ public class OllamaSqlService {
                     + "-- 업로드된 스키마에 관련 테이블이 있는지 확인해 주세요.");
         }
 
-        log.info("Resolved tables [{}] for query: {}",
-                relevantSchemas.stream().map(TableSchema::getTableName).collect(Collectors.joining(", ")),
-                userQuery);
+        log.info("Resolved tables [{}]",
+                relevantSchemas.stream().map(TableSchema::getTableName).collect(Collectors.joining(", ")));
 
         // ── Step 2: 검증된 테이블로만 SQL 생성 (스트리밍) ─────────────────────
         List<TableRelation> relations = schemaAnalysisService.inferRelations(relevantSchemas);
@@ -142,10 +141,10 @@ public class OllamaSqlService {
                     .content();
 
             response = stripThinkingTokens(response).trim();
-            log.info("Table resolution response: [{}]", response);
+            log.debug("Table resolution response: [{}]", response);
 
             if (response.isBlank() || response.equalsIgnoreCase("NONE")) {
-                log.warn("Table resolution returned NONE for: {}", userQuery);
+                log.warn("Table resolution returned NONE: queryLength={}", userQuery.length());
                 return List.of();
             }
 
@@ -163,7 +162,8 @@ public class OllamaSqlService {
                     .collect(Collectors.toList());
 
             if (resolved.isEmpty()) {
-                log.warn("Table resolution returned names not in schema. Raw response: [{}]", response);
+                log.warn("Table resolution returned names not in schema: responseLength={}", response.length());
+                log.debug("Table resolution raw response: [{}]", response);
                 return List.of();
             }
 

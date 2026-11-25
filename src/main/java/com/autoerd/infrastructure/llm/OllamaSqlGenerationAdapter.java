@@ -70,6 +70,7 @@ public class OllamaSqlGenerationAdapter implements SqlGenerationPort {
         var prompt = new Prompt(List.of(new SystemMessage(SYSTEM_PROMPT), new UserMessage(userContent)));
 
         StringBuilder received = new StringBuilder();
+        long[] startedAt = {System.currentTimeMillis()};
 
         return chatClient.prompt(prompt)
                 .stream()
@@ -77,17 +78,21 @@ public class OllamaSqlGenerationAdapter implements SqlGenerationPort {
                 .map(OllamaSqlGenerationAdapter::stripThinking)
                 .filter(chunk -> !chunk.isEmpty())
                 .doOnNext(received::append)
-                .doOnSubscribe(s -> log.info("SQL 생성 스트림 시작: projectId={}, query={}",
-                        request.projectId(), request.query()))
+                .doOnSubscribe(s -> {
+                    startedAt[0] = System.currentTimeMillis();
+                    log.info("SQL 생성 스트림 시작: projectId={}, queryLength={}",
+                            request.projectId(), request.query().length());
+                })
                 .doOnComplete(() -> log.info(
-                        "SQL 생성 스트림 정상 종료(onComplete): projectId={}, {}자 수신, 세미콜론종료={}",
-                        request.projectId(), received.length(), received.toString().trim().endsWith(";")))
+                        "SQL 생성 스트림 정상 종료(onComplete): projectId={}, {}자 수신, 세미콜론종료={}, elapsedMs={}",
+                        request.projectId(), received.length(), received.toString().trim().endsWith(";"),
+                        System.currentTimeMillis() - startedAt[0]))
                 .doOnCancel(() -> log.warn(
-                        "SQL 생성 스트림 취소(onCancel, 클라이언트/타임아웃 등으로 구독 중단 추정): projectId={}, {}자 수신",
-                        request.projectId(), received.length()))
+                        "SQL 생성 스트림 취소(onCancel, 클라이언트/타임아웃 등으로 구독 중단 추정): projectId={}, {}자 수신, elapsedMs={}",
+                        request.projectId(), received.length(), System.currentTimeMillis() - startedAt[0]))
                 .doOnError(e -> log.error(
-                        "SQL 생성 스트림 오류 종료(onError): projectId={}, {}자 수신, cause={}",
-                        request.projectId(), received.length(), e.toString()))
+                        "SQL 생성 스트림 오류 종료(onError): projectId={}, {}자 수신, elapsedMs={}, cause={}",
+                        request.projectId(), received.length(), System.currentTimeMillis() - startedAt[0], e.toString()))
                 // 정상 완료(onComplete)되었으나 SQL이 세미콜론 없이 끊긴 경우 — LLM의 조기 EOS 방출 등으로
                 // 스트림이 미완성 상태로 종료된 것으로 추정. 사용자에게 명시적으로 알려 재시도를 유도한다.
                 .concatWith(Flux.defer(() -> {

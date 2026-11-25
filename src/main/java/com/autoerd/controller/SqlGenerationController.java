@@ -24,7 +24,7 @@ public class SqlGenerationController {
         if (query.isEmpty()) {
             return Flux.just("-- 질문을 입력해 주세요.");
         }
-        log.info("SQL generation request: {}", query);
+        log.info("SQL generation request: queryLength={}", query.length());
         return ollamaSqlService.generateSqlStream(query);
     }
 }

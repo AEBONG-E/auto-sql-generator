@@ -32,7 +32,7 @@ public class ProjectSqlGenerationController {
             return Flux.just("-- 질문을 입력해 주세요.");
         }
 
-        log.info("SQL 생성 요청: projectId={}, query={}", projectId, query);
+        log.info("SQL 생성 요청: projectId={}, queryLength={}", projectId, query.length());
         return generateProjectSqlUseCase.generateSql(new GenerateProjectSqlCommand(projectId, query));
     }
 }
