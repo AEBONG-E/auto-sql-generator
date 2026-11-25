@@ -17,8 +17,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -49,8 +51,15 @@ public class GenerateProjectSqlService implements GenerateProjectSqlUseCase {
                 .map(TableSchema::getTableName)
                 .toList();
 
+        Map<String, String> candidateDescriptions = new HashMap<>();
+        for (TableSchema table : candidateTables) {
+            if (table.getTableDescription() != null) {
+                candidateDescriptions.putIfAbsent(table.getTableName(), table.getTableDescription());
+            }
+        }
+
         SqlTableResolutionRequest resolutionReq = new SqlTableResolutionRequest(
-                command.projectId(), command.query(), candidateNames);
+                command.projectId(), command.query(), candidateNames, candidateDescriptions);
         List<String> relevantNames;
         try {
             relevantNames = tableResolver.resolveRelevantTableNames(resolutionReq);

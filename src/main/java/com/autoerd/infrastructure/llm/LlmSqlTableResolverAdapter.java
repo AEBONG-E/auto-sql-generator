@@ -39,7 +39,9 @@ public class LlmSqlTableResolverAdapter implements SqlTableResolverPort {
 
     @Override
     public List<String> resolveRelevantTableNames(SqlTableResolutionRequest request) {
-        String tableList = String.join("\n", request.candidateTableNames());
+        String tableList = request.candidateTableNames().stream()
+                .map(name -> formatCandidate(name, request.candidateTableDescriptions().get(name)))
+                .collect(Collectors.joining("\n"));
         String userContent = """
                 Database tables:
                 %s
@@ -97,6 +99,13 @@ public class LlmSqlTableResolverAdapter implements SqlTableResolverPort {
         return oneLine.length() > MAX_LOG_MESSAGE_LENGTH
                 ? oneLine.substring(0, MAX_LOG_MESSAGE_LENGTH) + "..."
                 : oneLine;
+    }
+
+    // 레거시 OllamaSqlService.resolveRelevantTables 와 같은 "name [description]" 형식
+    private static String formatCandidate(String name, String description) {
+        return description != null && !description.isBlank()
+                ? name + " [" + description + "]"
+                : name;
     }
 
     private static String stripThinking(String text) {
