@@ -10,9 +10,12 @@ import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.stereotype.Component;
 
-import java.util.Arrays;
-import java.util.HashSet;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -64,14 +67,7 @@ public class LlmSqlTableResolverAdapter implements SqlTableResolverPort {
                 return List.of();
             }
 
-            Set<String> validNames = new HashSet<>(request.candidateTableNames());
-            return Arrays.stream(response.split("[,\\n]+"))
-                    .map(String::trim)
-                    .map(s -> s.replaceAll("[^a-zA-Z0-9_]", ""))
-                    .filter(s -> !s.isEmpty())
-                    .filter(validNames::contains)
-                    .distinct()
-                    .collect(Collectors.toList());
+            return mapToCandidateNames(response, request.candidateTableNames());
 
         } catch (Exception e) {
             // LLM 호출 실패(미기동, 타임아웃 등)를 "관련 테이블 없음"(빈 목록)과 구분하기 위해 예외로 전파한다.
@@ -81,6 +77,51 @@ public class LlmSqlTableResolverAdapter implements SqlTableResolverPort {
                     e.getClass().getName(), root.getClass().getName(), summarize(e.getMessage()));
             throw new SqlTableResolutionException("Table resolution LLM call failed", e);
         }
+    }
+
+    /**
+     * LLM 응답의 각 이름을 후보 테이블명(원래 표기)으로 매핑한다.
+     * 대소문자를 구분하지 않고, 이름을 감싼 따옴표/백틱/대괄호를 무시하며,
+     * schema.table 형식과 테이블명만 있는 형식을 모두 인식한다.
+     * 스키마 없이 답한 이름이 여러 스키마에 있으면 일치하는 후보를 모두 포함한다 (recall 우선).
+     */
+    private static List<String> mapToCandidateNames(String response, List<String> candidateNames) {
+        Map<String, List<String>> byFullName = new HashMap<>();
+        Map<String, List<String>> byTableName = new HashMap<>();
+        for (String name : candidateNames) {
+            String key = name.toLowerCase(Locale.ROOT);
+            byFullName.computeIfAbsent(key, k -> new ArrayList<>()).add(name);
+            byTableName.computeIfAbsent(tablePart(key), k -> new ArrayList<>()).add(name);
+        }
+
+        Set<String> selected = new LinkedHashSet<>();
+        for (String token : response.split("[,\\n]+")) {
+            String key = normalizeAnswerName(token);
+            if (key.isEmpty()) {
+                continue;
+            }
+            List<String> matches = byFullName.get(key);
+            if (matches == null) {
+                // schema.table 로 답했는데 정의서는 테이블명만 있는 경우 -> 테이블명 후보와 비교
+                // 테이블명만 답했는데 정의서는 schema.table 인 경우 -> 테이블 부분이 같은 후보 전부
+                matches = key.contains(".") ? byFullName.get(tablePart(key)) : byTableName.get(key);
+            }
+            if (matches != null) {
+                selected.addAll(matches);
+            }
+        }
+        return new ArrayList<>(selected);
+    }
+
+    private static String normalizeAnswerName(String token) {
+        return token.replaceAll("[\"'`\\[\\]]", "")
+                .replaceAll("\\s*\\.\\s*", ".")
+                .replaceAll("^[^\\p{L}\\p{N}_]+|[^\\p{L}\\p{N}_]+$", "")
+                .toLowerCase(Locale.ROOT);
+    }
+
+    private static String tablePart(String name) {
+        return name.substring(name.lastIndexOf('.') + 1);
     }
 
     private static Throwable rootCause(Throwable e) {
