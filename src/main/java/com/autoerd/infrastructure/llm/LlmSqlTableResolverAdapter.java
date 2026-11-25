@@ -1,6 +1,7 @@
 package com.autoerd.infrastructure.llm;
 
 import com.autoerd.domain.sql.model.SqlTableResolutionRequest;
+import com.autoerd.domain.sql.port.SqlTableResolutionException;
 import com.autoerd.domain.sql.port.SqlTableResolverPort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +32,8 @@ public class LlmSqlTableResolverAdapter implements SqlTableResolverPort {
             - If the query needs multiple tables, list all of them.
             - If nothing matches, reply with exactly: NONE
             """;
+
+    private static final int MAX_LOG_MESSAGE_LENGTH = 200;
 
     private final ChatClient chatClient;
 
@@ -69,9 +72,31 @@ public class LlmSqlTableResolverAdapter implements SqlTableResolverPort {
                     .collect(Collectors.toList());
 
         } catch (Exception e) {
-            log.error("Table resolution failed: {}", e.getMessage());
-            return List.of();
+            // LLM 호출 실패(미기동, 타임아웃 등)를 "관련 테이블 없음"(빈 목록)과 구분하기 위해 예외로 전파한다.
+            // 프롬프트나 질의 원문은 남기지 않고 예외 종류와 메시지 요약만 기록한다.
+            Throwable root = rootCause(e);
+            log.error("Table resolution LLM call failed: type={}, rootType={}, message={}",
+                    e.getClass().getName(), root.getClass().getName(), summarize(e.getMessage()));
+            throw new SqlTableResolutionException("Table resolution LLM call failed", e);
         }
+    }
+
+    private static Throwable rootCause(Throwable e) {
+        Throwable current = e;
+        while (current.getCause() != null && current.getCause() != current) {
+            current = current.getCause();
+        }
+        return current;
+    }
+
+    private static String summarize(String message) {
+        if (message == null) {
+            return "";
+        }
+        String oneLine = message.replaceAll("\\s+", " ").trim();
+        return oneLine.length() > MAX_LOG_MESSAGE_LENGTH
+                ? oneLine.substring(0, MAX_LOG_MESSAGE_LENGTH) + "..."
+                : oneLine;
     }
 
     private static String stripThinking(String text) {
