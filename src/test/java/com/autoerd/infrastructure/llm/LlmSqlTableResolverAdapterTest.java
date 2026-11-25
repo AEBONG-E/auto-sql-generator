@@ -3,6 +3,9 @@ package com.autoerd.infrastructure.llm;
 import com.autoerd.domain.sql.model.SqlTableResolutionRequest;
 import com.autoerd.domain.sql.port.SqlTableResolutionException;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.ai.chat.client.ChatClient;
 
 import java.util.List;
@@ -22,6 +25,7 @@ import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+@ExtendWith(OutputCaptureExtension.class)
 class LlmSqlTableResolverAdapterTest {
 
     private ChatClient chatClient;
@@ -93,5 +97,19 @@ class LlmSqlTableResolverAdapterTest {
                 .map(Message::getText)
                 .findFirst()
                 .orElseThrow();
+    }
+
+    @Test
+    @DisplayName("Step1 LLM 호출 실패 로그에 질의 원문과 프롬프트가 남지 않는다")
+    void resolve_failure_doesNotLogQueryOrPrompt(CapturedOutput output) {
+        when(chatClient.prompt().messages(anyList()).call().content())
+                .thenThrow(new RuntimeException("I/O error: Connection refused"));
+
+        assertThatThrownBy(() -> adapter.resolveRelevantTableNames(request))
+                .isInstanceOf(SqlTableResolutionException.class);
+
+        assertThat(output).contains("Table resolution LLM call failed: type=java.lang.RuntimeException");
+        assertThat(output).doesNotContain("주문 목록");
+        assertThat(output).doesNotContain("Database tables:");
     }
 }

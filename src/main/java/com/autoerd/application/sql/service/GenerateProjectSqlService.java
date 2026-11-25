@@ -61,11 +61,14 @@ public class GenerateProjectSqlService implements GenerateProjectSqlUseCase {
         SqlTableResolutionRequest resolutionReq = new SqlTableResolutionRequest(
                 command.projectId(), command.query(), candidateNames, candidateDescriptions);
         List<String> relevantNames;
+        long step1Start = System.currentTimeMillis();
         try {
             relevantNames = tableResolver.resolveRelevantTableNames(resolutionReq);
         } catch (SqlTableResolutionException e) {
             // LLM 호출 실패는 "관련 테이블 없음"(insufficient_schema)과 다른 응답으로 구분한다.
-            log.warn("Step1 테이블 판별 실패로 SQL 생성 중단: projectId={}", command.projectId());
+            log.warn("Step1 테이블 판별 실패로 SQL 생성 중단: projectId={}, elapsedMs={}, cause={}",
+                    command.projectId(), System.currentTimeMillis() - step1Start,
+                    e.getCause() != null ? e.getCause().getClass().getName() : e.getClass().getName());
             return Flux.just("-- llm_error: 관련 테이블 판별 중 LLM 호출에 실패했습니다.\n"
                     + "-- LLM 서버 상태를 확인한 뒤 다시 시도해 주세요.");
         }
@@ -75,7 +78,8 @@ public class GenerateProjectSqlService implements GenerateProjectSqlUseCase {
                     + "-- 업로드된 스키마에 관련 테이블이 있는지 확인해 주세요.");
         }
 
-        log.info("관련 테이블 [{}] 해결됨 — query: {}", String.join(", ", relevantNames), command.query());
+        log.info("관련 테이블 [{}] 해결됨: projectId={}, step1ElapsedMs={}",
+                String.join(", ", relevantNames), command.projectId(), System.currentTimeMillis() - step1Start);
 
         Set<String> relevantSet = new HashSet<>(relevantNames);
         List<TableSchema> relevantTables = snapshot.tables().stream()

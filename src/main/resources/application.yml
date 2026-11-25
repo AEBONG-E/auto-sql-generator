@@ -72,10 +72,23 @@ app:
       #   출고: "release dispatch"
       #   반품: "return refund"
 
+# 공통(기본)과 prod 에서는 INFO 이상만 남긴다. 질의 원문, LLM 요청 본문, HTTP 요청 본문은 로그에 남기지 않는다.
+# org.springframework.web DEBUG 는 HTTP 요청 본문(질의 원문 포함)을 출력하므로 공통/prod 에 두지 않는다.
+# 상세 디버깅이 필요하면 아래 local 프로파일 문서에서만 레벨을 올린다.
+logging:
+  level:
+    com.autoerd: INFO
+
+---
+# local 프로파일 전용 상세 로그. (org.springframework.web DEBUG 는 요청 본문을 출력하므로
+# 필요할 때만 로컬에서 임시로 추가하고 커밋하지 않는다.)
+spring:
+  config:
+    activate:
+      on-profile: local
 logging:
   level:
     com.autoerd: DEBUG
-    org.springframework.web: DEBUG
 
 ---
 # local / test 프로파일 — H2 인메모리 DB (개발/테스트 환경)
