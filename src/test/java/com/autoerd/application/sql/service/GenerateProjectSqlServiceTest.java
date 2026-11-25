@@ -10,6 +10,9 @@ import com.autoerd.model.TableSchema;
 import com.autoerd.service.TableCandidatePrefilter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import com.autoerd.domain.sql.model.SqlTableResolutionRequest;
+import org.junit.jupiter.api.DisplayName;
+import org.mockito.ArgumentCaptor;
 
 import java.util.List;
 
@@ -19,6 +22,7 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class GenerateProjectSqlServiceTest {
@@ -59,5 +63,34 @@ class GenerateProjectSqlServiceTest {
 
         assertThat(body).startsWith("-- insufficient_schema:");
         verifyNoInteractions(sqlGenerationPort);
+    }
+
+    @Test
+    @DisplayName("Step1 요청에 후보 테이블의 설명이 테이블명 기준으로 담긴다 (설명 없는 테이블은 제외)")
+    void generateSql_passesCandidateDescriptionsToTableResolver() {
+        SqlMetadataProvider metadataProvider = mock(SqlMetadataProvider.class);
+        SqlTableResolverPort tableResolver = mock(SqlTableResolverPort.class);
+        SqlGenerationPort sqlGenerationPort = mock(SqlGenerationPort.class);
+        TableCandidatePrefilter prefilter = mock(TableCandidatePrefilter.class);
+
+        List<TableSchema> tables = List.of(
+                TableSchema.builder().tableName("tb_order").tableDescription("주문").columns(List.of()).build(),
+                TableSchema.builder().tableName("tb_log").columns(List.of()).build());
+        when(metadataProvider.getCurrentSnapshot(1L)).thenReturn(new SqlMetadataSnapshot(tables, List.of()));
+        when(prefilter.prefilter(anyString(), anyList(), anyList())).thenReturn(tables);
+        when(tableResolver.resolveRelevantTableNames(any())).thenReturn(List.of());
+
+        GenerateProjectSqlService service =
+                new GenerateProjectSqlService(metadataProvider, tableResolver, sqlGenerationPort, prefilter);
+
+        service.generateSql(new GenerateProjectSqlCommand(1L, "주문 목록")).blockLast();
+
+        ArgumentCaptor<SqlTableResolutionRequest> captor = ArgumentCaptor.forClass(SqlTableResolutionRequest.class);
+        verify(tableResolver).resolveRelevantTableNames(captor.capture());
+        SqlTableResolutionRequest request = captor.getValue();
+        assertThat(request.candidateTableNames()).containsExactly("tb_order", "tb_log");
+        assertThat(request.candidateTableDescriptions())
+                .containsEntry("tb_order", "주문")
+                .doesNotContainKey("tb_log");
     }
 }
