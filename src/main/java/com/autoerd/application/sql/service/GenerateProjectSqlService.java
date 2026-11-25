@@ -7,6 +7,7 @@ import com.autoerd.domain.sql.model.SqlMetadataSnapshot;
 import com.autoerd.domain.sql.model.SqlTableResolutionRequest;
 import com.autoerd.domain.sql.port.SqlGenerationPort;
 import com.autoerd.domain.sql.port.SqlMetadataProvider;
+import com.autoerd.domain.sql.port.SqlTableResolutionException;
 import com.autoerd.domain.sql.port.SqlTableResolverPort;
 import com.autoerd.model.TableRelation;
 import com.autoerd.model.TableSchema;
@@ -50,7 +51,15 @@ public class GenerateProjectSqlService implements GenerateProjectSqlUseCase {
 
         SqlTableResolutionRequest resolutionReq = new SqlTableResolutionRequest(
                 command.projectId(), command.query(), candidateNames);
-        List<String> relevantNames = tableResolver.resolveRelevantTableNames(resolutionReq);
+        List<String> relevantNames;
+        try {
+            relevantNames = tableResolver.resolveRelevantTableNames(resolutionReq);
+        } catch (SqlTableResolutionException e) {
+            // LLM 호출 실패는 "관련 테이블 없음"(insufficient_schema)과 다른 응답으로 구분한다.
+            log.warn("Step1 테이블 판별 실패로 SQL 생성 중단: projectId={}", command.projectId());
+            return Flux.just("-- llm_error: 관련 테이블 판별 중 LLM 호출에 실패했습니다.\n"
+                    + "-- LLM 서버 상태를 확인한 뒤 다시 시도해 주세요.");
+        }
 
         if (relevantNames.isEmpty()) {
             return Flux.just("-- insufficient_schema: 요청에 해당하는 테이블을 스키마에서 찾을 수 없습니다.\n"
