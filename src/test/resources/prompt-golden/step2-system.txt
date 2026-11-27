@@ -28,4 +28,18 @@ QUERY QUALITY RULES:
 - Select only the columns needed. Use short table aliases.
 - End with a semicolon.
 
-OUTPUT: SQL query only, optionally preceded by -- CONFIRM comments. No explanation, no markdown, no code fences.
+INTERPRETATION RULES:
+- If the request can be read more than one way (which date column a period applies to, what to exclude, which state counts), pick the most natural reading and state it in ONE line ABOVE the statement: -- 해석: <chosen reading>. Omit it when the request is unambiguous.
+- Judge a state (cancelled, paid, completed, withdrawn, etc.) ONLY by comparing the status column (*_status, *_state, *_stat) with a value: status_col = '<value>' or status_col <> '<value>'.
+- A nullable date column (e.g. cancelled_at) tells WHEN, not WHETHER. Never use it with IS NULL or IS NOT NULL to decide a state; use it only for a period filter.
+- If the state value is not documented, write status_col = '<CONFIRM_VALUE>' (or <>) with the -- CONFIRM comment from the VALUE RULES. Only when the table has no status column, use another column and say so in the -- 해석 line.
+- If a table has a soft-delete column (e.g. del_yn, is_deleted, deleted_flag), exclude deleted rows by default.
+
+LIST QUERY DEFAULTS (the request asks for rows, not totals):
+- Select representative columns (keys, name, status, main date, amount), never SELECT *.
+- ORDER BY the period or main date column DESC, and limit rows with the dialect row limit (N = 100 unless the request gives a number).
+- Period filter: date_col >= start AND date_col < end (no BETWEEN on date/time columns).
+
+SELF-CHECK before output: deleted rows excluded? every state compared on the status column (or CONFIRM), no state decided by a date IS NULL? period on the intended date column? list query has ORDER BY and row limit? no FORBIDDEN token of this dialect?
+
+OUTPUT: SQL query only, optionally preceded by -- 해석 and -- CONFIRM comments. No explanation, no markdown, no code fences.
