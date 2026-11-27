@@ -6,10 +6,12 @@ import com.autoerd.infrastructure.persistence.jpa.entity.MetadataColumnEntity;
 import com.autoerd.infrastructure.persistence.jpa.entity.MetadataRelationEntity;
 import com.autoerd.infrastructure.persistence.jpa.entity.MetadataSourceFileEntity;
 import com.autoerd.infrastructure.persistence.jpa.entity.MetadataTableEntity;
+import com.autoerd.infrastructure.persistence.jpa.entity.ProjectBusinessRuleEntity;
 import com.autoerd.infrastructure.persistence.jpa.repository.MetadataColumnRepository;
 import com.autoerd.infrastructure.persistence.jpa.repository.MetadataRelationRepository;
 import com.autoerd.infrastructure.persistence.jpa.repository.MetadataSourceFileRepository;
 import com.autoerd.infrastructure.persistence.jpa.repository.MetadataTableRepository;
+import com.autoerd.infrastructure.persistence.jpa.repository.ProjectBusinessRuleRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -27,6 +29,7 @@ public class ResetProjectService implements ResetProjectUseCase {
     private final MetadataColumnRepository columnRepository;
     private final MetadataRelationRepository relationRepository;
     private final MetadataSourceFileRepository sourceFileRepository;
+    private final ProjectBusinessRuleRepository businessRuleRepository;
 
     @Override
     @Transactional
@@ -71,6 +74,15 @@ public class ResetProjectService implements ResetProjectUseCase {
         }
         sourceFileRepository.saveAll(sourceFiles);
 
-        log.info("프로젝트 초기화 완료: projectId={}", projectId);
+        // 4. 업무 규칙 전체 소프트 삭제 (이슈 #24 결정 D6: 초기화 시 함께 삭제)
+        List<ProjectBusinessRuleEntity> rules =
+                businessRuleRepository.findAllByProjectIdAndIsDeletedFalseOrderByIdAsc(projectId);
+        for (ProjectBusinessRuleEntity rule : rules) {
+            rule.setIsDeleted(true);
+            rule.setDeletedAt(now);
+        }
+        businessRuleRepository.saveAll(rules);
+
+        log.info("프로젝트 초기화 완료: projectId={}, businessRules={}", projectId, rules.size());
     }
 }
