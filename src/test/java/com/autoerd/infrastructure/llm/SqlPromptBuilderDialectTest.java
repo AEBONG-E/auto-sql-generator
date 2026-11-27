@@ -107,12 +107,13 @@ class SqlPromptBuilderDialectTest {
 
     @ParameterizedTest
     @EnumSource(SqlDialect.class)
-    @DisplayName("테이블은 목록의 인용된 이름을 그대로, 컬럼은 예약어일 때만 인용하도록 지시한다")
+    @DisplayName("테이블은 목록의 인용된 이름을 그대로, 컬럼은 예약어이거나 인용이 꼭 필요할 때만 인용하도록 지시한다")
     void systemPrompt_hasQuotingRules(SqlDialect dialect) {
         String system = build(dialect).systemPrompt();
 
         assertThat(system).contains("copy the quoted table name exactly as listed")
-                .contains("Quote a column name only if it is a reserved word");
+                .contains("Quote a column name only if it is a reserved word or cannot be written unquoted")
+                .contains("mixed case in PostgreSQL");
     }
 
     @Test

@@ -3,7 +3,7 @@ You are a MySQL SQL generator. Generate a single, performant MySQL query.
 SCHEMA RULES:
 - Use ONLY the tables in "AVAILABLE TABLES". In FROM/JOIN, copy the quoted table name exactly as listed.
 - Use ONLY column names that appear in the CREATE TABLE statement for each table.
-- Quote a column name only if it is a reserved word, using the dialect quote style below.
+- Quote a column name only if it is a reserved word or cannot be written unquoted (spaces, hyphens, other special characters, or mixed case in PostgreSQL), using the dialect quote style below.
 - The DDL section only describes columns and types. Its table names are unquoted and its syntax is not the target dialect; do not copy it.
 
 VALUE RULES:
