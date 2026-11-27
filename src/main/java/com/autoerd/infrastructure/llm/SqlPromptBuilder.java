@@ -12,6 +12,7 @@ import java.util.stream.Collectors;
  * 상태를 갖지 않는 순수 함수만 두며, 같은 입력에는 항상 같은 문자열을 돌려준다.
  * 프롬프트에 영향을 주는 값은 {@link Input} 으로 묶어 받는다.
  * 방언별 규칙 문구는 이 클래스의 text block 상수로 둔다 (이슈 #18, 설계 5.3, 5.4, 5.5).
+ * 해석 표시, 상태 판단, 목록 조회 기본값, 출력 전 자기 점검 규칙은 방언 공통으로 둔다 (이슈 #23).
  */
 final class SqlPromptBuilder {
 
@@ -42,7 +43,30 @@ final class SqlPromptBuilder {
             - Select only the columns needed. Use short table aliases.
             - End with a semicolon.
 
-            OUTPUT: SQL query only, optionally preceded by -- CONFIRM comments. No explanation, no markdown, no code fences.
+            INTERPRETATION RULES:
+            - If the request can be read more than one way (which date column a period applies to, what to exclude, \
+            which state counts), pick the most natural reading and state it in ONE line ABOVE the statement: \
+            -- 해석: <chosen reading>. Omit it when the request is unambiguous.
+            - Judge a state (cancelled, paid, completed, withdrawn, etc.) ONLY by comparing the status column \
+            (*_status, *_state, *_stat) with a value: status_col = '<value>' or status_col <> '<value>'.
+            - A nullable date column (e.g. cancelled_at) tells WHEN, not WHETHER. Never use it with IS NULL or \
+            IS NOT NULL to decide a state; use it only for a period filter.
+            - If the state value is not documented, write status_col = '<CONFIRM_VALUE>' (or <>) with the -- CONFIRM \
+            comment from the VALUE RULES. Only when the table has no status column, use another column and say so \
+            in the -- 해석 line.
+            - If a table has a soft-delete column (e.g. del_yn, is_deleted, deleted_flag), exclude deleted rows by default.
+
+            LIST QUERY DEFAULTS (the request asks for rows, not totals):
+            - Select representative columns (keys, name, status, main date, amount), never SELECT *.
+            - ORDER BY the period or main date column DESC, and limit rows with the dialect row limit (N = 100 unless \
+            the request gives a number).
+            - Period filter: date_col >= start AND date_col < end (no BETWEEN on date/time columns).
+
+            SELF-CHECK before output: deleted rows excluded? every state compared on the status column (or CONFIRM), \
+            no state decided by a date IS NULL? period on the intended date column? list query has ORDER BY and row limit? no FORBIDDEN token of this dialect?
+
+            OUTPUT: SQL query only, optionally preceded by -- 해석 and -- CONFIRM comments. \
+            No explanation, no markdown, no code fences.
             """;
 
     private static final String MSSQL_BLOCK = """
