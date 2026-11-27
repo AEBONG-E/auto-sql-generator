@@ -91,7 +91,7 @@ class LlmSqlTableResolverAdapterTest {
     // --- 이슈 #16: schema.table 형식 테이블명 매핑 ---
 
     private static final List<String> SCHEMA_QUALIFIED = List.of(
-            "member.user", "order.sales_order", "member.guest-customer", "log.user", "tb_code");
+            "shop.group", "shop.purchase_order", "shop.guest-visitor", "audit.group", "tb_code");
 
     private List<String> resolveWith(String llmResponse, List<String> candidates) {
         when(chatClient.prompt().messages(anyList()).call().content()).thenReturn(llmResponse);
@@ -101,22 +101,22 @@ class LlmSqlTableResolverAdapterTest {
     @Test
     @DisplayName("LLM 이 schema.table 후보명을 그대로 답하면 원래 이름으로 선택된다")
     void resolve_schemaQualifiedAnswer_keepsOriginalName() {
-        assertThat(resolveWith("member.user,order.sales_order", SCHEMA_QUALIFIED))
-                .containsExactly("member.user", "order.sales_order");
+        assertThat(resolveWith("shop.group,shop.purchase_order", SCHEMA_QUALIFIED))
+                .containsExactly("shop.group", "shop.purchase_order");
     }
 
     @Test
     @DisplayName("하이픈이 들어간 schema.table 이름도 유지된다")
     void resolve_hyphenatedName_keepsOriginalName() {
-        assertThat(resolveWith("member.guest-customer", SCHEMA_QUALIFIED))
-                .containsExactly("member.guest-customer");
+        assertThat(resolveWith("shop.guest-visitor", SCHEMA_QUALIFIED))
+                .containsExactly("shop.guest-visitor");
     }
 
     @Test
     @DisplayName("대소문자가 달라도 원래 이름으로 매핑된다")
     void resolve_caseDifference_mapsToOriginalName() {
-        assertThat(resolveWith("MEMBER.USER, Order.Sales_Order", SCHEMA_QUALIFIED))
-                .containsExactly("member.user", "order.sales_order");
+        assertThat(resolveWith("SHOP.GROUP, Shop.Purchase_Order", SCHEMA_QUALIFIED))
+                .containsExactly("shop.group", "shop.purchase_order");
         assertThat(resolveWith("TB_CODE", SCHEMA_QUALIFIED))
                 .containsExactly("tb_code");
     }
@@ -124,23 +124,23 @@ class LlmSqlTableResolverAdapterTest {
     @Test
     @DisplayName("따옴표, 백틱, 대괄호로 감싼 이름도 원래 이름으로 매핑된다")
     void resolve_quotedOrBracketed_mapsToOriginalName() {
-        assertThat(resolveWith("`member`.`user`, \"order\".\"sales_order\", [member].[guest-customer], 'tb_code'",
+        assertThat(resolveWith("`shop`.`group`, \"shop\".\"purchase_order\", [shop].[guest-visitor], 'tb_code'",
                 SCHEMA_QUALIFIED))
-                .containsExactly("member.user", "order.sales_order", "member.guest-customer", "tb_code");
+                .containsExactly("shop.group", "shop.purchase_order", "shop.guest-visitor", "tb_code");
     }
 
     @Test
     @DisplayName("스키마 없이 테이블명만 답하면 해당 schema.table 후보로 매핑된다")
     void resolve_tableOnlyAnswer_mapsToSchemaQualifiedCandidate() {
-        assertThat(resolveWith("sales_order", SCHEMA_QUALIFIED))
-                .containsExactly("order.sales_order");
+        assertThat(resolveWith("purchase_order", SCHEMA_QUALIFIED))
+                .containsExactly("shop.purchase_order");
     }
 
     @Test
     @DisplayName("스키마 없이 답한 이름이 여러 스키마에 있으면 일치하는 후보를 모두 포함한다")
     void resolve_tableOnlyAnswerInMultipleSchemas_includesAllMatches() {
-        assertThat(resolveWith("user", SCHEMA_QUALIFIED))
-                .containsExactlyInAnyOrder("member.user", "log.user");
+        assertThat(resolveWith("group", SCHEMA_QUALIFIED))
+                .containsExactlyInAnyOrder("shop.group", "audit.group");
     }
 
     @Test
@@ -153,14 +153,14 @@ class LlmSqlTableResolverAdapterTest {
     @Test
     @DisplayName("다른 스키마로 답한 이름은 schema.table 후보에 잘못 매핑되지 않는다")
     void resolve_wrongSchema_isNotMapped() {
-        assertThat(resolveWith("billing.user", SCHEMA_QUALIFIED)).isEmpty();
+        assertThat(resolveWith("billing.group", SCHEMA_QUALIFIED)).isEmpty();
     }
 
     @Test
     @DisplayName("후보에 없는 이름은 버리고 중복은 한 번만 남긴다")
     void resolve_unknownAndDuplicate_filtered() {
-        assertThat(resolveWith("member.user, unknown_table, MEMBER.USER, member.user.", SCHEMA_QUALIFIED))
-                .containsExactly("member.user");
+        assertThat(resolveWith("shop.group, unknown_table, SHOP.GROUP, shop.group.", SCHEMA_QUALIFIED))
+                .containsExactly("shop.group");
     }
 
     @SuppressWarnings("unchecked")

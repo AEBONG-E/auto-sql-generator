@@ -19,30 +19,30 @@ class DialectSqlIdentifierQuoterTest {
     @Test
     @DisplayName("MSSQL 은 대괄호로 schema.table 을 각각 인용한다")
     void mssql_quotesWithBrackets() {
-        assertThat(quoter(SqlDialect.MSSQL).quoteTableName("member.user")).isEqualTo("[member].[user]");
-        assertThat(quoter(SqlDialect.MSSQL).quoteIdentifier("order")).isEqualTo("[order]");
+        assertThat(quoter(SqlDialect.MSSQL).quoteTableName("shop.group")).isEqualTo("[shop].[group]");
+        assertThat(quoter(SqlDialect.MSSQL).quoteIdentifier("group")).isEqualTo("[group]");
     }
 
     @Test
     @DisplayName("MYSQL 은 백틱으로 schema.table 을 각각 인용한다")
     void mysql_quotesWithBackticks() {
-        assertThat(quoter(SqlDialect.MYSQL).quoteTableName("member.user")).isEqualTo("`member`.`user`");
-        assertThat(quoter(SqlDialect.MYSQL).quoteIdentifier("order")).isEqualTo("`order`");
+        assertThat(quoter(SqlDialect.MYSQL).quoteTableName("shop.group")).isEqualTo("`shop`.`group`");
+        assertThat(quoter(SqlDialect.MYSQL).quoteIdentifier("group")).isEqualTo("`group`");
     }
 
     @Test
     @DisplayName("POSTGRESQL 은 큰따옴표로 schema.table 을 각각 인용한다")
     void postgresql_quotesWithDoubleQuotes() {
-        assertThat(quoter(SqlDialect.POSTGRESQL).quoteTableName("member.user")).isEqualTo("\"member\".\"user\"");
-        assertThat(quoter(SqlDialect.POSTGRESQL).quoteIdentifier("order")).isEqualTo("\"order\"");
+        assertThat(quoter(SqlDialect.POSTGRESQL).quoteTableName("shop.group")).isEqualTo("\"shop\".\"group\"");
+        assertThat(quoter(SqlDialect.POSTGRESQL).quoteIdentifier("group")).isEqualTo("\"group\"");
     }
 
     @ParameterizedTest(name = "{0}: {1} -> {2}")
     @CsvSource(delimiter = '|', value = {
             "MSSQL      | tb_code          | [tb_code]",
-            "MSSQL      | order.sales.item | [order].[sales.item]",
-            "MYSQL      | order.sales.item | `order`.`sales.item`",
-            "POSTGRESQL | order.sales.item | '\"order\".\"sales.item\"'",
+            "MSSQL      | shop.sales.item | [shop].[sales.item]",
+            "MYSQL      | shop.sales.item | `shop`.`sales.item`",
+            "POSTGRESQL | shop.sales.item | '\"shop\".\"sales.item\"'",
     })
     @DisplayName("schema.table 은 첫 '.' 기준으로 나누고, 점이 없으면 이름 하나로 인용한다")
     void quoteTableName_splitsOnFirstDot(SqlDialect dialect, String raw, String expected) {
@@ -62,9 +62,9 @@ class DialectSqlIdentifierQuoterTest {
     @Test
     @DisplayName("schema 가 비어 있으면 object 이름만 인용한다")
     void quoteQualifiedName_blankSchema_quotesObjectOnly() {
-        assertThat(quoter(SqlDialect.MSSQL).quoteQualifiedName(null, "user")).isEqualTo("[user]");
-        assertThat(quoter(SqlDialect.MSSQL).quoteQualifiedName(" ", "user")).isEqualTo("[user]");
-        assertThat(quoter(SqlDialect.MSSQL).quoteQualifiedName("member", "user")).isEqualTo("[member].[user]");
+        assertThat(quoter(SqlDialect.MSSQL).quoteQualifiedName(null, "group")).isEqualTo("[group]");
+        assertThat(quoter(SqlDialect.MSSQL).quoteQualifiedName(" ", "group")).isEqualTo("[group]");
+        assertThat(quoter(SqlDialect.MSSQL).quoteQualifiedName("shop", "group")).isEqualTo("[shop].[group]");
     }
 
     @Test

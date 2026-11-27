@@ -58,7 +58,7 @@ class OllamaSqlGenerationAdapterPromptTest {
 
         List<Message> messages = capturedPrompt().getInstructions();
         assertThat(messages.get(0).getText()).contains("DIALECT: Microsoft SQL Server (T-SQL)").doesNotContain("MySQL");
-        assertThat(messages.get(1).getText()).contains("  - [member].[user] (회원)");
+        assertThat(messages.get(1).getText()).contains("  - [shop].[group] (고객 그룹)");
     }
 
     private Prompt capturedPrompt() {

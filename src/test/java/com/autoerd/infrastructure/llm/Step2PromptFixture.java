@@ -27,28 +27,28 @@ final class Step2PromptFixture {
     static final String USER_GOLDEN = "/prompt-golden/step2-user.txt";
 
     // 큰따옴표, 퍼센트 기호, 한글을 넣어 format 처리와 인코딩이 그대로인지 함께 고정한다.
-    static final String QUERY = "활성 회원의 \"최근\" 3개월 주문을 100% 집계해줘";
+    static final String QUERY = "활성 그룹의 \"최근\" 3개월 주문을 100% 집계해줘";
 
     private Step2PromptFixture() {
     }
 
     static List<TableSchema> tables() {
         TableSchema user = TableSchema.builder()
-                .tableName("member.user")
-                .tableDescription("회원")
+                .tableName("shop.group")
+                .tableDescription("고객 그룹")
                 .columns(List.of(
-                        ColumnDef.builder().ordinal(1).columnName("user_id").columnType("bigint")
+                        ColumnDef.builder().ordinal(1).columnName("group_no").columnType("bigint")
                                 .keyType(KeyType.PRI).nullable(false).autoIncrement(true).build(),
-                        ColumnDef.builder().ordinal(2).columnName("user_status").dataType("nvarchar")
-                                .keyType(KeyType.NONE).nullable(true).columnComment("회원상태 ACTIVATED/WITHDRAWN").build()))
+                        ColumnDef.builder().ordinal(2).columnName("group_status").dataType("nvarchar")
+                                .keyType(KeyType.NONE).nullable(true).columnComment("그룹상태 OPEN/CLOSED").build()))
                 .build();
         TableSchema order = TableSchema.builder()
-                .tableName("order.sales_order")
+                .tableName("shop.purchase_order")
                 .tableDescription(" ")
                 .columns(List.of(
-                        ColumnDef.builder().ordinal(1).columnName("sales_order_id").columnType("bigint")
+                        ColumnDef.builder().ordinal(1).columnName("purchase_order_id").columnType("bigint")
                                 .keyType(KeyType.PRI).nullable(false).build(),
-                        ColumnDef.builder().ordinal(2).columnName("user_id").columnType("bigint")
+                        ColumnDef.builder().ordinal(2).columnName("group_no").columnType("bigint")
                                 .keyType(KeyType.MUL).nullable(false).build(),
                         ColumnDef.builder().ordinal(3).columnName("delete_yn").columnType("nchar(1)")
                                 .keyType(KeyType.NONE).nullable(false).defaultValue("N").build()))
@@ -64,8 +64,8 @@ final class Step2PromptFixture {
 
     static List<TableRelation> relations() {
         return List.of(TableRelation.builder()
-                .fromTable("order.sales_order").fromColumn("user_id")
-                .toTable("member.user").toColumn("user_id")
+                .fromTable("shop.purchase_order").fromColumn("group_no")
+                .toTable("shop.group").toColumn("group_no")
                 .type(RelationType.ONE_TO_MANY).build());
     }
 

@@ -120,11 +120,11 @@ class SqlPromptBuilderDialectTest {
     @DisplayName("AVAILABLE TABLES 에 방언별로 인용된 테이블명을 넣는다 (설명은 그대로)")
     void userMessage_listsQuotedTableNames() {
         assertThat(build(SqlDialect.MSSQL).userMessage())
-                .contains("  - [member].[user] (회원)\n  - [order].[sales_order]\n  - [tb_code]\n");
+                .contains("  - [shop].[group] (고객 그룹)\n  - [shop].[purchase_order]\n  - [tb_code]\n");
         assertThat(build(SqlDialect.MYSQL).userMessage())
-                .contains("  - `member`.`user` (회원)\n  - `order`.`sales_order`\n  - `tb_code`\n");
+                .contains("  - `shop`.`group` (고객 그룹)\n  - `shop`.`purchase_order`\n  - `tb_code`\n");
         assertThat(build(SqlDialect.POSTGRESQL).userMessage())
-                .contains("  - \"member\".\"user\" (회원)\n  - \"order\".\"sales_order\"\n  - \"tb_code\"\n");
+                .contains("  - \"shop\".\"group\" (고객 그룹)\n  - \"shop\".\"purchase_order\"\n  - \"tb_code\"\n");
     }
 
     @Test
@@ -132,6 +132,6 @@ class SqlPromptBuilderDialectTest {
     void userMessage_keepsDdlAndQuery() {
         String user = build(SqlDialect.MSSQL).userMessage();
 
-        assertThat(user).contains("CREATE TABLE member.user (").contains("Request: \"" + Step2PromptFixture.QUERY + "\"");
+        assertThat(user).contains("CREATE TABLE shop.group (").contains("Request: \"" + Step2PromptFixture.QUERY + "\"");
     }
 }

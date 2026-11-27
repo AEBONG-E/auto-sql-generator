@@ -1,23 +1,23 @@
 AVAILABLE TABLES (use ONLY these):
-  - `member`.`user` (회원)
-  - `order`.`sales_order`
+  - `shop`.`group` (고객 그룹)
+  - `shop`.`purchase_order`
   - `tb_code`
 
 DDL + RELATIONSHIPS:
--- member.user (회원)
-CREATE TABLE member.user (
-  user_id bigint NOT NULL AUTO_INCREMENT,
-  user_status nvarchar COMMENT '회원상태 ACTIVATED/WITHDRAWN'
--- PRIMARY KEY: user_id
+-- shop.group (고객 그룹)
+CREATE TABLE shop.group (
+  group_no bigint NOT NULL AUTO_INCREMENT,
+  group_status nvarchar COMMENT '그룹상태 OPEN/CLOSED'
+-- PRIMARY KEY: group_no
 );
 
--- order.sales_order
-CREATE TABLE order.sales_order (
-  sales_order_id bigint NOT NULL,
-  user_id bigint NOT NULL,
+-- shop.purchase_order
+CREATE TABLE shop.purchase_order (
+  purchase_order_id bigint NOT NULL,
+  group_no bigint NOT NULL,
   delete_yn nchar(1) NOT NULL DEFAULT 'N'
--- PRIMARY KEY: sales_order_id
--- INDEXED COLUMNS: user_id
+-- PRIMARY KEY: purchase_order_id
+-- INDEXED COLUMNS: group_no
 );
 
 -- tb_code
@@ -27,8 +27,8 @@ CREATE TABLE tb_code (
 );
 
 -- Inferred Relationships
--- order.sales_order.user_id -> member.user.user_id [ONE_TO_MANY]
+-- shop.purchase_order.group_no -> shop.group.group_no [ONE_TO_MANY]
 
 
 
-Request: "활성 회원의 "최근" 3개월 주문을 100% 집계해줘"
+Request: "활성 그룹의 "최근" 3개월 주문을 100% 집계해줘"
