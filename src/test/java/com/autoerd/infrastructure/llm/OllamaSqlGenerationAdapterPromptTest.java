@@ -1,5 +1,8 @@
 package com.autoerd.infrastructure.llm;
 
+import com.autoerd.domain.sql.model.SqlDialect;
+import com.autoerd.domain.sql.model.SqlGenerationRequest;
+import com.autoerd.domain.sql.model.SqlMetadataSnapshot;
 import com.autoerd.service.DdlContextBuilder;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -29,7 +32,7 @@ class OllamaSqlGenerationAdapterPromptTest {
             new OllamaSqlGenerationAdapter(chatClient, new DdlContextBuilder());
 
     @Test
-    @DisplayName("Step2 LLM 에 보내는 시스템 프롬프트와 사용자 메시지가 golden 과 바이트 단위로 같다")
+    @DisplayName("MYSQL 방언일 때 Step2 LLM 에 보내는 시스템 프롬프트와 사용자 메시지가 golden 과 바이트 단위로 같다")
     void generate_sendsPromptIdenticalToGolden() {
         when(chatClient.prompt(any(Prompt.class)).stream().content()).thenReturn(Flux.just("SELECT 1;"));
 
@@ -42,6 +45,20 @@ class OllamaSqlGenerationAdapterPromptTest {
                 .isEqualTo(bytes(Step2PromptFixture.golden(Step2PromptFixture.SYSTEM_GOLDEN)));
         assertThat(bytes(messages.get(1).getText()))
                 .isEqualTo(bytes(Step2PromptFixture.golden(Step2PromptFixture.USER_GOLDEN)));
+    }
+
+    @Test
+    @DisplayName("요청 스냅샷의 방언(MSSQL)으로 시스템 프롬프트와 테이블명 인용을 만든다")
+    void generate_usesSnapshotDialect() {
+        when(chatClient.prompt(any(Prompt.class)).stream().content()).thenReturn(Flux.just("SELECT 1;"));
+        SqlGenerationRequest mssql = new SqlGenerationRequest(7L, Step2PromptFixture.QUERY, new SqlMetadataSnapshot(
+                Step2PromptFixture.tables(), Step2PromptFixture.relations(), SqlDialect.MSSQL));
+
+        adapter.generate(mssql).blockLast();
+
+        List<Message> messages = capturedPrompt().getInstructions();
+        assertThat(messages.get(0).getText()).contains("DIALECT: Microsoft SQL Server (T-SQL)").doesNotContain("MySQL");
+        assertThat(messages.get(1).getText()).contains("  - [member].[user] (회원)");
     }
 
     private Prompt capturedPrompt() {

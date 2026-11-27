@@ -35,7 +35,8 @@ public class OllamaSqlGenerationAdapter implements SqlGenerationPort {
 
         String ddl = ddlContextBuilder.build(tables, relations);
 
-        SqlPromptBuilder.Result built = SqlPromptBuilder.build(new SqlPromptBuilder.Input(tables, ddl, request.query()));
+        SqlPromptBuilder.Result built = SqlPromptBuilder.build(new SqlPromptBuilder.Input(
+                tables, ddl, request.query(), request.metadataSnapshot().dialect()));
         var prompt = new Prompt(List.of(new SystemMessage(built.systemPrompt()), new UserMessage(built.userMessage())));
 
         StringBuilder received = new StringBuilder();
