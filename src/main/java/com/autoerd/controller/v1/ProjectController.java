@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -36,9 +37,21 @@ public class ProjectController {
             return ResponseEntity.badRequest().body(Map.of("error", "projectName은 필수입니다"));
         }
 
-        MetadataProjectEntity project = projectService.createProject(projectKey, projectName, description);
-        log.info("프로젝트 생성: id={}, key={}", project.getId(), projectKey);
+        MetadataProjectEntity project = projectService.createProject(
+                projectKey, projectName, description, body.get("sqlDialect"));
+        log.info("프로젝트 생성: id={}, key={}, sqlDialect={}", project.getId(), projectKey, project.getSqlDialect());
 
+        return ResponseEntity.ok(toProjectResponse(project));
+    }
+
+    /**
+     * 프로젝트의 SQL 방언만 바꾼다. 본문은 {"sqlDialect": "..."} 만 사용하고 다른 필드는 반영하지 않는다.
+     */
+    @PatchMapping("/{projectId}")
+    public ResponseEntity<Map<String, Object>> updateProject(@PathVariable Long projectId,
+                                                             @RequestBody Map<String, String> body) {
+        MetadataProjectEntity project = projectService.updateSqlDialect(projectId, body.get("sqlDialect"));
+        log.info("프로젝트 SQL 방언 변경: id={}, sqlDialect={}", project.getId(), project.getSqlDialect());
         return ResponseEntity.ok(toProjectResponse(project));
     }
 
@@ -62,7 +75,8 @@ public class ProjectController {
                 "projectKey", project.getProjectKey(),
                 "projectName", project.getProjectName(),
                 "projectStatus", project.getProjectStatus(),
-                "description", project.getDescription() != null ? project.getDescription() : ""
+                "description", project.getDescription() != null ? project.getDescription() : "",
+                "sqlDialect", project.getSqlDialect().name()
         );
     }
 }

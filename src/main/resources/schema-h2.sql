@@ -14,6 +14,7 @@ CREATE TABLE metadata_project (
     project_name    VARCHAR(200)    NOT NULL,
     project_status  VARCHAR(30)     NOT NULL DEFAULT 'ACTIVE',
     description     VARCHAR(1000),
+    sql_dialect     VARCHAR(20)     NOT NULL DEFAULT 'MYSQL',
     is_deleted      BOOLEAN         NOT NULL DEFAULT FALSE,
     created_at      TIMESTAMP       NOT NULL,
     updated_at      TIMESTAMP       NOT NULL,
