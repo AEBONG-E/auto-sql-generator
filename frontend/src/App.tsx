@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { Project } from './types/api'
+import type { Project, SqlDialect } from './types/api'
 import { ToastProvider, useToast } from './hooks/useToast'
 import { useProjects } from './hooks/useProjects'
+import { ApiError } from './api/http'
+import { sqlDialectLabel } from './lib/sqlDialect'
 import { ToastContainer } from './components/common/ToastContainer'
 import { ErrorBoundary } from './components/common/ErrorBoundary'
 import { Header } from './components/layout/Header'
@@ -26,7 +28,7 @@ function writeProjectIdToUrl(projectId: number | null) {
 }
 
 function AppShell() {
-  const { projects, loading, createProject } = useProjects()
+  const { projects, loading, createProject, updateProjectDialect } = useProjects()
   const { showToast } = useToast()
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(readProjectIdFromUrl)
   const [creatorOpen, setCreatorOpen] = useState(false)
@@ -49,6 +51,18 @@ function AppShell() {
 
   const currentProject = projects.find((p) => p.id === selectedProjectId)
 
+  const changeDialect = useCallback(
+    async (projectId: number, sqlDialect: SqlDialect) => {
+      try {
+        const updated = await updateProjectDialect(projectId, sqlDialect)
+        showToast(`SQL 방언을 ${sqlDialectLabel(updated.sqlDialect)} 로 변경했습니다`, 'success')
+      } catch (err) {
+        showToast(err instanceof ApiError ? err.message : 'SQL 방언을 변경하지 못했습니다', 'error')
+      }
+    },
+    [updateProjectDialect, showToast],
+  )
+
   // URL에 projectId가 있었지만 목록 로딩 후 존재하지 않는 경우 목록 화면으로 복귀
   useEffect(() => {
     if (!loading && selectedProjectId && !currentProject) {
@@ -68,7 +82,11 @@ function AppShell() {
 
       <ErrorBoundary key={currentProject?.id ?? 'list'}>
         {currentProject ? (
-          <Workspace key={currentProject.id} project={currentProject} />
+          <Workspace
+            key={currentProject.id}
+            project={currentProject}
+            onChangeDialect={(sqlDialect) => changeDialect(currentProject.id, sqlDialect)}
+          />
         ) : (
           <ProjectSelector
             projects={projects}

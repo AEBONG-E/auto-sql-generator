@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import * as projectsApi from '../api/projects'
-import type { Project } from '../types/api'
+import type { Project, SqlDialect } from '../types/api'
 import { ApiError } from '../api/http'
 import { useToast } from './useToast'
 
@@ -26,13 +26,19 @@ export function useProjects() {
   }, [refresh])
 
   const createProject = useCallback(
-    async (projectKey: string, projectName: string, description?: string) => {
-      const project = await projectsApi.createProject({ projectKey, projectName, description })
+    async (projectKey: string, projectName: string, sqlDialect: SqlDialect, description?: string) => {
+      const project = await projectsApi.createProject({ projectKey, projectName, description, sqlDialect })
       setProjects((prev) => [project, ...prev])
       return project
     },
     [],
   )
 
-  return { projects, loading, refresh, createProject }
+  const updateProjectDialect = useCallback(async (projectId: number, sqlDialect: SqlDialect) => {
+    const updated = await projectsApi.updateProjectDialect(projectId, sqlDialect)
+    setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)))
+    return updated
+  }, [])
+
+  return { projects, loading, refresh, createProject, updateProjectDialect }
 }

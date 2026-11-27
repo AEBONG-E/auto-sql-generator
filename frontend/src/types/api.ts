@@ -3,6 +3,9 @@
  * 백엔드 응답 형태가 바뀌면 아래 각 타입 옆 소스 경로를 먼저 확인해 갱신할 것.
  */
 
+/** src/main/java/com/autoerd/domain/sql/model/SqlDialect.java */
+export type SqlDialect = 'MSSQL' | 'MYSQL' | 'POSTGRESQL'
+
 /** src/main/java/com/autoerd/controller/v1/ProjectController.java#toProjectResponse */
 export interface Project {
   id: number
@@ -10,6 +13,7 @@ export interface Project {
   projectName: string
   projectStatus: string
   description: string
+  sqlDialect: SqlDialect
 }
 
 /** src/main/java/com/autoerd/controller/v1/MetadataImportController.java#listFiles */

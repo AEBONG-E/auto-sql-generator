@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import type { Project, ProjectFile, TableInfo } from '../../types/api'
+import type { Project, ProjectFile, SqlDialect, TableInfo } from '../../types/api'
+import { SQL_DIALECT_OPTIONS } from '../../lib/sqlDialect'
 import { FileList } from '../FileList/FileList'
 import { TableFilter } from '../TableFilter/TableFilter'
 import { TableDetailPanel } from '../TableFilter/TableDetailPanel'
@@ -18,6 +19,7 @@ interface SidebarProps {
   onSelectAllTables: (names: string[]) => void
   onDeselectAllTables: () => void
   onTableClick: (name: string) => void
+  onChangeDialect: (sqlDialect: SqlDialect) => Promise<void>
 }
 
 export function Sidebar({
@@ -33,9 +35,11 @@ export function Sidebar({
   onSelectAllTables,
   onDeselectAllTables,
   onTableClick,
+  onChangeDialect,
 }: SidebarProps) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [confirmingReset, setConfirmingReset] = useState(false)
+  const [dialectSaving, setDialectSaving] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -75,6 +79,29 @@ export function Sidebar({
         </div>
         <div className="sidebar-project-meta">
           파일 {files.length}개 · 테이블 {tables.length}개
+        </div>
+        <div className="sidebar-project-dialect">
+          <label htmlFor="sidebar-sql-dialect">SQL 방언</label>
+          <select
+            id="sidebar-sql-dialect"
+            className="input"
+            value={project.sqlDialect}
+            disabled={dialectSaving}
+            onChange={async (e) => {
+              setDialectSaving(true)
+              try {
+                await onChangeDialect(e.target.value as SqlDialect)
+              } finally {
+                setDialectSaving(false)
+              }
+            }}
+          >
+            {SQL_DIALECT_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
         </div>
         {confirmingReset && (
           <div className="sidebar-reset-confirm">

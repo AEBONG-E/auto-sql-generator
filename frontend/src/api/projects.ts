@@ -1,6 +1,6 @@
 import { apiFetch } from './http'
 import { API_BASE } from './config'
-import type { Project } from '../types/api'
+import type { Project, SqlDialect } from '../types/api'
 
 const BASE = `${API_BASE}/api/v1/projects`
 
@@ -16,10 +16,19 @@ export function createProject(params: {
   projectKey: string
   projectName: string
   description?: string
+  sqlDialect: SqlDialect
 }): Promise<Project> {
   return apiFetch<Project>(BASE, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(params),
+  })
+}
+
+export function updateProjectDialect(projectId: number, sqlDialect: SqlDialect): Promise<Project> {
+  return apiFetch<Project>(`${BASE}/${projectId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sqlDialect }),
   })
 }
