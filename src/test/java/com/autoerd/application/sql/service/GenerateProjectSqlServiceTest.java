@@ -1,6 +1,8 @@
 package com.autoerd.application.sql.service;
 
 import com.autoerd.application.sql.usecase.GenerateProjectSqlCommand;
+import com.autoerd.domain.sql.model.SqlDialect;
+import com.autoerd.domain.sql.model.SqlGenerationRequest;
 import com.autoerd.domain.sql.model.SqlMetadataSnapshot;
 import com.autoerd.domain.sql.port.SqlGenerationPort;
 import com.autoerd.domain.sql.port.SqlMetadataProvider;
@@ -97,6 +99,24 @@ class GenerateProjectSqlServiceTest {
         assertThat(request.candidateTableDescriptions())
                 .containsEntry("tb_order", "주문")
                 .doesNotContainKey("tb_log");
+    }
+
+    @Test
+    @DisplayName("프로젝트 방언을 Step2 요청(SqlGenerationRequest)까지 그대로 넘긴다")
+    void generateSql_passesProjectDialectToStep2() {
+        List<TableSchema> tables = List.of(TableSchema.builder().tableName("orders").columns(List.of()).build());
+        when(metadataProvider.getCurrentSnapshot(1L))
+                .thenReturn(new SqlMetadataSnapshot(tables, List.of(), SqlDialect.MSSQL));
+        when(tableResolver.resolveRelevantTableNames(any())).thenReturn(List.of("orders"));
+        when(sqlGenerationPort.generate(any())).thenReturn(Flux.just("SELECT 1;"));
+
+        service.generateSql(command).blockLast();
+
+        ArgumentCaptor<SqlGenerationRequest> captor = ArgumentCaptor.forClass(SqlGenerationRequest.class);
+        verify(sqlGenerationPort).generate(captor.capture());
+        assertThat(captor.getValue().metadataSnapshot().dialect()).isEqualTo(SqlDialect.MSSQL);
+        assertThat(captor.getValue().metadataSnapshot().tables()).extracting(TableSchema::getTableName)
+                .containsExactly("orders");
     }
 
     @Test
