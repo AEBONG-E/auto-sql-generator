@@ -1,5 +1,6 @@
 package com.autoerd.infrastructure.persistence.jpa;
 
+import com.autoerd.domain.sql.model.SqlDialect;
 import com.autoerd.infrastructure.persistence.jpa.entity.MetadataColumnEntity;
 import com.autoerd.infrastructure.persistence.jpa.entity.MetadataProjectEntity;
 import com.autoerd.infrastructure.persistence.jpa.entity.MetadataRelationEntity;
@@ -75,6 +76,40 @@ class MetadataPersistenceSliceTest {
         assertThat(found.get().getProjectKey()).isEqualTo("proj-a");
         assertThat(found.get().getIsDeleted()).isFalse();
         assertThat(found.get().getCreatedAt()).isNotNull();
+    }
+
+    @Test
+    void projectSqlDialectShouldDefaultToMysqlAndPersistAsName() {
+        MetadataProjectEntity defaulted = persistProject("proj-dialect-default");
+        MetadataProjectEntity mssql = projectRepository.saveAndFlush(MetadataProjectEntity.builder()
+                .projectKey("proj-dialect-mssql")
+                .projectName("mssql")
+                .sqlDialect(SqlDialect.MSSQL)
+                .build());
+        em.clear();
+
+        assertThat(projectRepository.findById(defaulted.getId()).orElseThrow().getSqlDialect())
+                .isEqualTo(SqlDialect.MYSQL);
+        assertThat(projectRepository.findById(mssql.getId()).orElseThrow().getSqlDialect())
+                .isEqualTo(SqlDialect.MSSQL);
+        Object stored = em.getEntityManager()
+                .createNativeQuery("SELECT sql_dialect FROM metadata_project WHERE id = :id")
+                .setParameter("id", mssql.getId())
+                .getSingleResult();
+        assertThat(stored).isEqualTo("MSSQL");
+    }
+
+    @Test
+    void projectRowWithoutSqlDialectShouldUseDbDefaultMysql() {
+        // 마이그레이션 이전에 만들어진 행처럼 sql_dialect 를 지정하지 않고 넣는다
+        em.getEntityManager().createNativeQuery(
+                        "INSERT INTO metadata_project (project_key, project_name, project_status, is_deleted, created_at, updated_at) "
+                                + "VALUES ('proj-dialect-legacy', 'legacy', 'ACTIVE', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)")
+                .executeUpdate();
+        em.clear();
+
+        MetadataProjectEntity legacy = projectRepository.findByProjectKeyAndIsDeletedFalse("proj-dialect-legacy").orElseThrow();
+        assertThat(legacy.getSqlDialect()).isEqualTo(SqlDialect.MYSQL);
     }
 
     @Test

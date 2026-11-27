@@ -1,7 +1,10 @@
 package com.autoerd.infrastructure.persistence.jpa.entity;
 
+import com.autoerd.domain.sql.model.SqlDialect;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -48,4 +51,9 @@ public class MetadataProjectEntity extends SoftDeletableAuditEntity {
 
     @Column(name = "description", length = 1000)
     private String description;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "sql_dialect", nullable = false, length = 20)
+    @Builder.Default
+    private SqlDialect sqlDialect = SqlDialect.MYSQL;
 }
