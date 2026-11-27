@@ -71,6 +71,9 @@ app:
       # synonyms:
       #   출고: "release dispatch"
       #   반품: "return refund"
+  # 프로젝트 업무 규칙 (이슈 #24). 프로젝트당 등록 상한 (삭제되지 않은 규칙 기준, 비활성 포함).
+  business-rules:
+    max-per-project: 500
 
 # 공통(기본)과 prod 에서는 INFO 이상만 남긴다. 질의 원문, LLM 요청 본문, HTTP 요청 본문은 로그에 남기지 않는다.
 # org.springframework.web DEBUG 는 HTTP 요청 본문(질의 원문 포함)을 출력하므로 공통/prod 에 두지 않는다.
