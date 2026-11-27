@@ -1,0 +1,34 @@
+AVAILABLE TABLES (use ONLY these):
+  - member.user (회원)
+  - order.sales_order
+  - tb_code
+
+DDL + RELATIONSHIPS:
+-- member.user (회원)
+CREATE TABLE member.user (
+  user_id bigint NOT NULL AUTO_INCREMENT,
+  user_status nvarchar COMMENT '회원상태 ACTIVATED/WITHDRAWN'
+-- PRIMARY KEY: user_id
+);
+
+-- order.sales_order
+CREATE TABLE order.sales_order (
+  sales_order_id bigint NOT NULL,
+  user_id bigint NOT NULL,
+  delete_yn nchar(1) NOT NULL DEFAULT 'N'
+-- PRIMARY KEY: sales_order_id
+-- INDEXED COLUMNS: user_id
+);
+
+-- tb_code
+CREATE TABLE tb_code (
+  code varchar(20) NOT NULL
+-- PRIMARY KEY: code
+);
+
+-- Inferred Relationships
+-- order.sales_order.user_id -> member.user.user_id [ONE_TO_MANY]
+
+
+
+Request: "활성 회원의 "최근" 3개월 주문을 100% 집계해줘"
