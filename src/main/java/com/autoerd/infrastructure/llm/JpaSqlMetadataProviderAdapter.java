@@ -1,12 +1,15 @@
 package com.autoerd.infrastructure.llm;
 
+import com.autoerd.domain.sql.model.SqlDialect;
 import com.autoerd.domain.sql.model.SqlMetadataSnapshot;
 import com.autoerd.domain.sql.port.SqlMetadataProvider;
 import com.autoerd.infrastructure.assembler.MetadataDomainAssembler;
 import com.autoerd.infrastructure.persistence.jpa.entity.MetadataColumnEntity;
+import com.autoerd.infrastructure.persistence.jpa.entity.MetadataProjectEntity;
 import com.autoerd.infrastructure.persistence.jpa.entity.MetadataRelationEntity;
 import com.autoerd.infrastructure.persistence.jpa.entity.MetadataTableEntity;
 import com.autoerd.infrastructure.persistence.jpa.repository.MetadataColumnRepository;
+import com.autoerd.infrastructure.persistence.jpa.repository.MetadataProjectRepository;
 import com.autoerd.infrastructure.persistence.jpa.repository.MetadataRelationRepository;
 import com.autoerd.infrastructure.persistence.jpa.repository.MetadataTableRepository;
 import com.autoerd.model.TableRelation;
@@ -26,6 +29,7 @@ public class JpaSqlMetadataProviderAdapter implements SqlMetadataProvider {
     private final MetadataTableRepository tableRepository;
     private final MetadataColumnRepository columnRepository;
     private final MetadataRelationRepository relationRepository;
+    private final MetadataProjectRepository projectRepository;
     private final MetadataDomainAssembler assembler;
 
     @Override
@@ -51,6 +55,11 @@ public class JpaSqlMetadataProviderAdapter implements SqlMetadataProvider {
                 .map(assembler::toTableRelation)
                 .toList();
 
-        return new SqlMetadataSnapshot(tables, relations);
+        // 프로젝트 방언 (이슈 #18). 프로젝트를 찾지 못하면 저장/API 기본값과 같은 MYSQL.
+        SqlDialect dialect = projectRepository.findById(projectId)
+                .map(MetadataProjectEntity::getSqlDialect)
+                .orElse(SqlDialect.MYSQL);
+
+        return new SqlMetadataSnapshot(tables, relations, dialect);
     }
 }

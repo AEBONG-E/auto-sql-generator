@@ -89,7 +89,7 @@ public class GenerateProjectSqlService implements GenerateProjectSqlUseCase {
                 .filter(r -> relevantSet.contains(r.getFromTable()) && relevantSet.contains(r.getToTable()))
                 .collect(Collectors.toList());
 
-        SqlMetadataSnapshot filteredSnapshot = new SqlMetadataSnapshot(relevantTables, relevantRelations);
+        SqlMetadataSnapshot filteredSnapshot = new SqlMetadataSnapshot(relevantTables, relevantRelations, snapshot.dialect());
         SqlGenerationRequest genReq = new SqlGenerationRequest(command.projectId(), command.query(), filteredSnapshot);
 
         return sqlGenerationPort.generate(genReq);

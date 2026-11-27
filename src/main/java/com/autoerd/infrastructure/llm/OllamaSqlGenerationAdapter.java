@@ -15,11 +15,15 @@ import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 
 import java.util.List;
+import java.util.regex.Pattern;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class OllamaSqlGenerationAdapter implements SqlGenerationPort {
+
+    /** 세미콜론으로 끝나거나, 세미콜론 뒤에 '--' 주석만 붙은 줄. */
+    private static final Pattern TERMINATED_LINE = Pattern.compile(".*;\\s*(--.*)?");
 
     private final ChatClient chatClient;
     private final DdlContextBuilder ddlContextBuilder;
@@ -31,7 +35,8 @@ public class OllamaSqlGenerationAdapter implements SqlGenerationPort {
 
         String ddl = ddlContextBuilder.build(tables, relations);
 
-        SqlPromptBuilder.Result built = SqlPromptBuilder.build(new SqlPromptBuilder.Input(tables, ddl, request.query()));
+        SqlPromptBuilder.Result built = SqlPromptBuilder.build(new SqlPromptBuilder.Input(
+                tables, ddl, request.query(), request.metadataSnapshot().dialect()));
         var prompt = new Prompt(List.of(new SystemMessage(built.systemPrompt()), new UserMessage(built.userMessage())));
 
         StringBuilder received = new StringBuilder();
@@ -50,7 +55,7 @@ public class OllamaSqlGenerationAdapter implements SqlGenerationPort {
                 })
                 .doOnComplete(() -> log.info(
                         "SQL 생성 스트림 정상 종료(onComplete): projectId={}, {}자 수신, 세미콜론종료={}, elapsedMs={}",
-                        request.projectId(), received.length(), received.toString().trim().endsWith(";"),
+                        request.projectId(), received.length(), endsWithStatementTerminator(received.toString()),
                         System.currentTimeMillis() - startedAt[0]))
                 .doOnCancel(() -> log.warn(
                         "SQL 생성 스트림 취소(onCancel, 클라이언트/타임아웃 등으로 구독 중단 추정): projectId={}, {}자 수신, elapsedMs={}",
@@ -62,7 +67,7 @@ public class OllamaSqlGenerationAdapter implements SqlGenerationPort {
                 // 스트림이 미완성 상태로 종료된 것으로 추정. 사용자에게 명시적으로 알려 재시도를 유도한다.
                 .concatWith(Flux.defer(() -> {
                     String content = received.toString().trim();
-                    if (!content.isEmpty() && !content.endsWith(";")) {
+                    if (!content.isEmpty() && !endsWithStatementTerminator(content)) {
                         log.warn("SQL 생성 응답이 세미콜론 없이 종료됨 — 조기 종료로 추정: projectId={}, {}자",
                                 request.projectId(), received.length());
                         return Flux.just("\n-- ⚠ 응답이 예기치 않게 중단되었습니다. 다시 시도해 주세요.");
@@ -73,6 +78,23 @@ public class OllamaSqlGenerationAdapter implements SqlGenerationPort {
                     log.error("SQL 생성 중 예외 발생: projectId={}", request.projectId(), e);
                     return Flux.just("-- ⚠ SQL 생성 중 오류가 발생했습니다. 다시 시도해 주세요.");
                 });
+    }
+
+    /**
+     * 마지막 비주석 줄이 세미콜론으로 끝나는지 본다 (이슈 #18).
+     * 빈 줄과 '--' 로 시작하는 줄은 건너뛰고, 같은 줄의 세미콜론 뒤에 붙은 '--' 주석은 허용한다.
+     * 비주석 줄이 하나도 없으면 SQL 이 없으므로 false 를 돌려준다.
+     */
+    static boolean endsWithStatementTerminator(String content) {
+        String[] lines = content.split("\\R");
+        for (int i = lines.length - 1; i >= 0; i--) {
+            String line = lines[i].strip();
+            if (line.isEmpty() || line.startsWith("--")) {
+                continue;
+            }
+            return TERMINATED_LINE.matcher(line).matches();
+        }
+        return false;
     }
 
     private static String stripThinking(String chunk) {

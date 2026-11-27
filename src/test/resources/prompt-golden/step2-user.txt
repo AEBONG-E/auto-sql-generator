@@ -1,7 +1,7 @@
 AVAILABLE TABLES (use ONLY these):
-  - member.user (회원)
-  - order.sales_order
-  - tb_code
+  - `member`.`user` (회원)
+  - `order`.`sales_order`
+  - `tb_code`
 
 DDL + RELATIONSHIPS:
 -- member.user (회원)

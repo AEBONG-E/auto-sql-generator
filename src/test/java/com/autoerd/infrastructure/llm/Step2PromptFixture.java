@@ -1,5 +1,6 @@
 package com.autoerd.infrastructure.llm;
 
+import com.autoerd.domain.sql.model.SqlDialect;
 import com.autoerd.domain.sql.model.SqlGenerationRequest;
 import com.autoerd.domain.sql.model.SqlMetadataSnapshot;
 import com.autoerd.model.ColumnDef;
@@ -16,7 +17,8 @@ import java.util.List;
 
 /**
  * Step2 프롬프트 golden 비교용 고정 입력과 기대값 로더.
- * 기대값 파일은 SqlPromptBuilder 분리 전 코드(origin/feature/user 5e835d1)의 출력으로 만들었다.
+ * 기대값 파일은 SqlPromptBuilder 분리 전 코드(origin/feature/user 5e835d1)의 출력으로 처음 만들었고,
+ * 이슈 #18 3단계에서 MYSQL 방언일 때의 출력(방언 블록, 값 규칙, 인용된 테이블명)으로 갱신했다.
  */
 final class Step2PromptFixture {
 
@@ -67,7 +69,7 @@ final class Step2PromptFixture {
     }
 
     static SqlGenerationRequest request() {
-        return new SqlGenerationRequest(7L, QUERY, new SqlMetadataSnapshot(tables(), relations()));
+        return new SqlGenerationRequest(7L, QUERY, new SqlMetadataSnapshot(tables(), relations(), SqlDialect.MYSQL));
     }
 
     static String golden(String path) {
