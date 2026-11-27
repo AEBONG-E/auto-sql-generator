@@ -41,8 +41,8 @@ class TableCandidatePrefilterTest {
     void reducesLargeSchemaToKeywordMatchedCandidates() {
         List<TableSchema> tables = new ArrayList<>();
         tables.add(table("user", "회원", "id", "name"));
-        tables.add(table("user_detail", "회원 상세", "user_id", "address"));
-        tables.add(table("user_agreement", "회원 약관 동의", "user_id", "agreed"));
+        tables.add(table("user_profile", "회원 프로필", "user_id", "address"));
+        tables.add(table("user_consent", "회원 수신 동의", "user_id", "agreed"));
         for (int i = 0; i < 87; i++) {
             tables.add(table("misc_" + i, "기타 " + i, "id", "value"));
         }
@@ -53,7 +53,7 @@ class TableCandidatePrefilterTest {
 
         List<String> names = result.stream().map(TableSchema::getTableName).toList();
         assertThat(result.size()).isLessThan(90);
-        assertThat(names).contains("user", "user_detail", "user_agreement");
+        assertThat(names).contains("user", "user_profile", "user_consent");
         assertThat(names).doesNotContain("misc_0", "misc_42");
     }
 
@@ -116,10 +116,10 @@ class TableCandidatePrefilterTest {
     void koreanSynonymPullsInEnglishTableWithEmptyDescription() {
         List<TableSchema> tables = new ArrayList<>();
         // branch: 설명/컬럼 코멘트가 비어 스코어가 낮은 상황 재현
-        tables.add(table("branch", "", "branch_id", "branch_nm"));
-        tables.add(table("user", "회원", "user_id", "user_status", "region_code"));
-        tables.add(table("user_branch_change_history", "회원 지점 변경 이력",
-                "user_id", "after_branch_id", "delete_yn"));
+        tables.add(table("branch", "", "branch_id", "branch_name"));
+        tables.add(table("user", "회원", "user_id", "user_state", "zone_code"));
+        tables.add(table("user_branch_move_log", "회원 지점 이동 기록",
+                "user_id", "to_branch_id", "delete_yn"));
         for (int i = 0; i < 45; i++) {
             tables.add(table("etc_" + i, "기타 " + i, "id"));
         }
@@ -130,7 +130,7 @@ class TableCandidatePrefilterTest {
         List<String> names = result.stream().map(TableSchema::getTableName).toList();
 
         assertThat(names).contains("branch");                       // 동의어로 살아남아야 함
-        assertThat(names).contains("user", "user_branch_change_history");
+        assertThat(names).contains("user", "user_branch_move_log");
         assertThat(result.size()).isLessThan(tables.size());        // 여전히 축소됨
     }
 
