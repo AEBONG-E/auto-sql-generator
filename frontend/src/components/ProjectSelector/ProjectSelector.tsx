@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { Project } from '../../types/api'
+import { sqlDialectLabel } from '../../lib/sqlDialect'
 import './project-selector.css'
 
 interface ProjectSelectorProps {
@@ -50,6 +51,7 @@ export function ProjectSelector({ projects, loading, onSelect, onCreateClick }: 
           <div key={project.id} className="project-card" onClick={() => onSelect(project)}>
             <div className="project-card-name">{project.projectName}</div>
             <div className="project-card-meta">{project.description || '설명 없음'}</div>
+            <div className="project-card-meta">SQL 방언: {sqlDialectLabel(project.sqlDialect)}</div>
           </div>
         ))}
         <div className="project-card project-card-new" onClick={onCreateClick}>

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { Project } from '../../types/api'
+import type { Project, SqlDialect } from '../../types/api'
 import { useProjectWorkspace } from '../../hooks/useProjectWorkspace'
 import { Sidebar } from './Sidebar'
 import { ContextBar } from './ContextBar'
@@ -11,9 +11,10 @@ import './workspace.css'
 
 interface WorkspaceProps {
   project: Project
+  onChangeDialect: (sqlDialect: SqlDialect) => Promise<void>
 }
 
-export function Workspace({ project }: WorkspaceProps) {
+export function Workspace({ project, onChangeDialect }: WorkspaceProps) {
   const {
     files,
     uploadStage,
@@ -56,6 +57,7 @@ export function Workspace({ project }: WorkspaceProps) {
         onSelectAllTables={selectAllTables}
         onDeselectAllTables={deselectAllTables}
         onTableClick={(name) => setActiveDetailTable((prev) => (prev === name ? prev : name))}
+        onChangeDialect={onChangeDialect}
       />
 
       <div className="workspace-content">
