@@ -1,6 +1,7 @@
 -- H2 In-Memory Schema (MySQL Flyway V1 호환 버전)
 -- MySQL GENERATED ALWAYS AS STORED → H2 computed column 문법 적용
 
+DROP TABLE IF EXISTS project_business_rule;
 DROP TABLE IF EXISTS metadata_import_history;
 DROP TABLE IF EXISTS metadata_relation;
 DROP TABLE IF EXISTS metadata_column;
@@ -124,3 +125,27 @@ CREATE TABLE metadata_import_history (
     CONSTRAINT fk_import_history_project     FOREIGN KEY (project_id)    REFERENCES metadata_project (id),
     CONSTRAINT fk_import_history_source_file FOREIGN KEY (source_file_id) REFERENCES metadata_source_file (id)
 );
+
+-- 이슈 #24: 프로젝트 업무 규칙 (MySQL Flyway V3 호환 버전)
+CREATE TABLE project_business_rule (
+    id                  BIGINT          NOT NULL AUTO_INCREMENT,
+    project_id          BIGINT          NOT NULL,
+    rule_type           VARCHAR(30)     NOT NULL,
+    term                VARCHAR(100),
+    term_aliases        VARCHAR(300),
+    table_name          VARCHAR(255)    NOT NULL,
+    column_name         VARCHAR(255),
+    related_table_name  VARCHAR(255),
+    condition_text      VARCHAR(1000),
+    value_items_json    VARCHAR(4000),
+    auto_include        BOOLEAN         NOT NULL DEFAULT FALSE,
+    description         VARCHAR(1000),
+    is_enabled          BOOLEAN         NOT NULL DEFAULT TRUE,
+    is_deleted          BOOLEAN         NOT NULL DEFAULT FALSE,
+    created_at          TIMESTAMP       NOT NULL,
+    updated_at          TIMESTAMP       NOT NULL,
+    deleted_at          TIMESTAMP,
+    PRIMARY KEY (id),
+    CONSTRAINT fk_business_rule_project FOREIGN KEY (project_id) REFERENCES metadata_project (id)
+);
+CREATE INDEX idx_business_rule_project ON project_business_rule (project_id, is_deleted, is_enabled);
